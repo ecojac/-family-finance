@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Family Finance</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#F5F3EE; --surface:#FFF; --surface2:#EEF0F5; --surface3:#E4E6ED;
+  --border:rgba(0,0,0,0.09); --border2:rgba(0,0,0,0.14);
+  --text:#1C1B18; --text2:#4A4845; --text3:#7A7874;
+  --gold:#9B6F1E; --gold-dim:rgba(155,111,30,0.10);
+  --green:#1A6B3C; --green-dim:rgba(26,107,60,0.10);
+  --red:#B02A2A; --red-dim:rgba(176,42,42,0.09);
+  --blue:#1A4A8A; --blue-dim:rgba(26,74,138,0.09);
+  --orange:#9B4A10; --orange-dim:rgba(155,74,16,0.09);
+  --r:14px; --r-sm:9px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Mulish',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;font-size:16px}
+
+/* HEADER */
+.header{background:#FFF;border-bottom:1px solid var(--border);padding:13px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.hbrand{display:flex;align-items:center;gap:10px}
+.hlogo{width:34px;height:34px;background:var(--gold);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:17px;color:#FFF;font-weight:500}
+.htitle{font-family:'Playfair Display',serif;font-size:19px;font-weight:400}
+.hsub{font-size:11px;color:var(--text3);margin-top:1px}
+.hright{display:flex;align-items:center;gap:7px}
+.pay-pill{background:var(--gold-dim);border:1px solid rgba(155,111,30,.22);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--gold);text-align:right;line-height:1.4}
+.pay-pill strong{display:block;font-size:13px;font-weight:700}
+.icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);cursor:pointer;padding:7px;border-radius:9px;display:flex;align-items:center;transition:all .15s}
+.icon-btn:active{background:var(--gold-dim);color:var(--gold)}
+.icon-btn svg{width:21px;height:21px;stroke-width:1.8}
+
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:#FFF;border-top:1.5px solid var(--border);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom,0);box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px 7px;cursor:pointer;border:none;background:transparent;color:var(--text3);font-family:'Mulish',sans-serif;font-size:10px;font-weight:500;transition:color .2s;position:relative}
+.ni.active{color:var(--gold)}
+.ni svg{width:22px;height:22px;stroke-width:1.8}
+
+/* OVERLAY / SHEET */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
+.overlay.open{display:flex}
+.sheet{background:#FFF;border-radius:20px 20px 0 0;width:100%;max-width:600px;padding:0 20px calc(22px + env(safe-area-inset-bottom,0));animation:slideUp .25s ease;max-height:92dvh;overflow-y:auto;position:relative}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:13px auto 16px}
+.sheet-title{font-family:'Playfair Display',serif;font-size:21px;margin-bottom:14px}
+.sheet-close{position:absolute;right:18px;top:14px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+
+/* MAIN */
+.main{max-width:600px;margin:0 auto;padding:18px 16px 96px}
+.panel{display:none;animation:fadeUp .2s ease}
+.panel.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* TYPE */
+.stitle{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;margin-bottom:3px}
+.ssub{font-size:13px;color:var(--text2);margin-bottom:17px}
+
+/* CARDS */
+.card{background:#FFF;border:1px solid var(--border);border-radius:var(--r);padding:15px 17px;margin-bottom:11px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.ctitle{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:13px}
+
+/* METRICS */
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}
+.met{background:#FFF;border:1px solid var(--border);border-radius:var(--r-sm);padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.mlabel{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:600}
+.mval{font-family:'Playfair Display',serif;font-size:25px;font-weight:400}
+.mval.g{color:var(--green)}.mval.r{color:var(--red)}.mval.gold{color:var(--gold)}.mval.b{color:var(--blue)}
+
+/* ROWS */
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
+.row:last-child{border-bottom:none}
+.rname{color:var(--text);font-weight:500}
+.rsub{font-size:11px;color:var(--text3);margin-top:2px}
+.rright{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ramt{font-weight:700;font-size:14px}
+.trow{display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding:11px 0 0;margin-top:3px;border-top:2px solid var(--border2)}
+
+/* BADGES */
+.badge{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:700;white-space:nowrap}
+.b-loc{background:var(--blue-dim);color:var(--blue)}
+.b-cc{background:var(--orange-dim);color:var(--orange)}
+.b-bank{background:var(--surface2);color:var(--text2)}
+.b-due{background:var(--red-dim);color:var(--red)}
+.b-soon{background:var(--orange-dim);color:var(--orange)}
+.b-ok{background:var(--green-dim);color:var(--green)}
+
+/* PROGRESS */
+.prog{height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;border:1px solid var(--border)}
+.pbar{height:100%;border-radius:5px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+
+/* INSIGHTS */
+.ins{border-left:4px solid;padding:11px 14px;margin-bottom:9px;border-radius:0 var(--r-sm) var(--r-sm) 0;font-size:13.5px;line-height:1.65}
+.ins.g{border-color:var(--green);background:#F0FAF4;color:#1A4A2A}
+.ins.w{border-color:#B06010;background:#FEF6EC;color:#7A3A08}
+.ins.r{border-color:var(--red);background:#FEF0F0;color:#7A1A1A}
+.ins.b{border-color:var(--blue);background:#EFF4FC;color:#1A3A6A}
+.ins.gold{border-color:var(--gold);background:#FEF8EC;color:#6A4A08}
+
+/* BUTTONS */
+.btn{font-family:'Mulish',sans-serif;font-size:14px;font-weight:600;padding:10px 18px;border-radius:var(--r-sm);cursor:pointer;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text);transition:all .15s}
+.btn:active{transform:scale(.97)}
+.btn-gold{background:var(--gold);color:#FFF;border-color:var(--gold);font-weight:700}
+.btn-red{background:var(--red-dim);color:var(--red);border-color:transparent}
+.btn-green{background:var(--green-dim);color:var(--green);border-color:var(--green);font-weight:700}
+.btn-sm{font-size:12px;padding:7px 14px}
+.btn-full{width:100%;text-align:center;margin-top:8px}
+.brow{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+
+/* INPUTS */
+input,select,textarea{font-family:'Mulish',sans-serif;font-size:15px;padding:10px 13px;border:1.5px solid var(--border2);border-radius:var(--r-sm);background:#FFF;color:var(--text);width:100%;appearance:none}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:var(--gold)}
+input::placeholder{color:var(--text3)}
+textarea{resize:vertical;min-height:48px}
+input[type=range]{padding:0;background:transparent;border:none;accent-color:var(--gold)}
+label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600}
+
+/* PAYMENT SOURCE BUTTONS */
+.source-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.src-btn{font-family:'Mulish',sans-serif;font-size:13px;font-weight:600;padding:12px 8px;border-radius:var(--r-sm);cursor:pointer;border:2px solid var(--border2);background:#FFF;color:var(--text2);transition:all .15s;text-align:center}
+.src-btn:active,.src-btn.selected{border-color:var(--gold);background:var(--gold-dim);color:var(--gold)}
+
+/* BALANCE CARDS */
+.balcard{background:var(--surface2);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:9px;cursor:pointer;border:1.5px solid transparent;transition:all .15s}
+.balcard:hover{border-color:var(--gold)}
+.balcard.editing{border-color:var(--gold);background:#FEF9F0}
+.bclabel{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;font-weight:600}
+.bcrow{display:flex;justify-content:space-between;align-items:center}
+.bcval{font-family:'Playfair Display',serif;font-size:27px}
+.bchint{font-size:11px;color:var(--text3);margin-top:3px}
+.bcedit{display:none;grid-template-columns:1fr auto;gap:8px;margin-top:9px}
+.balcard.editing .bcedit{display:grid}
+
+/* BILL ROWS */
+.bill-wrap{border-bottom:1px solid var(--border)}
+.bill-wrap:last-child{border-bottom:none}
+.bill-main{display:flex;justify-content:space-between;align-items:center;padding:10px 0;font-size:14px}
+.bill-detail{display:none;padding:0 0 12px;border-bottom:1px solid var(--border)}
+.bill-detail.open{display:block}
+.bill-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.pay-btn{font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid var(--green);background:var(--green-dim);color:var(--green);cursor:pointer;font-family:'Mulish',sans-serif;font-weight:700;white-space:nowrap;flex-shrink:0}
+.pay-btn.paid{background:var(--green);color:#FFF}
+.paid-chip{background:var(--green-dim);color:var(--green);font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700}
+.overage-chip{background:var(--red-dim);color:var(--red);font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700}
+.under-chip{background:var(--green-dim);color:var(--green);font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700}
+.edit-link{font-size:11px;color:var(--blue);cursor:pointer;text-decoration:underline;margin-left:5px}
+
+/* SINK FUNDS */
+.sink-card{background:#FFF;border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.sink-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px}
+.sink-name{font-size:15px;font-weight:600}
+.sink-bal{font-family:'Playfair Display',serif;font-size:22px;color:var(--green)}
+.sink-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.sink-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid var(--border)}
+
+/* CHECKLIST */
+.cli{display:flex;align-items:flex-start;gap:11px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.cli:last-child{border-bottom:none}
+.cli.done{opacity:.4}
+.chkbox{width:24px;height:24px;border:2px solid var(--border2);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;transition:all .2s;background:#FFF}
+.cli.done .chkbox{background:var(--green);border-color:var(--green)}
+.chkicon{color:#fff;font-size:12px;display:none}
+.cli.done .chkicon{display:block}
+.chtitle{font-size:15px;font-weight:600}
+.cli.done .chtitle{text-decoration:line-through;color:var(--text3)}
+.chsub{font-size:12px;color:var(--text2);margin-top:2px;line-height:1.5}
+.chamt{font-size:13px;font-weight:700;color:var(--gold);white-space:nowrap;flex-shrink:0;margin-top:2px}
+
+/* ENV CATS */
+.ecat{background:var(--surface2);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:8px;border:1px solid var(--border)}
+.echead{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.ecname{font-size:14px;font-weight:600}
+.ecmeta{font-size:12px;color:var(--text2)}
+
+/* TRANSACTION LOG */
+.txn{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+.txn:last-child{border-bottom:none}
+.txn-desc{font-weight:500}
+.txn-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.txn-amt{font-weight:700;font-size:14px}
+.txn-amt.debit{color:var(--red)}
+.txn-amt.credit{color:var(--green)}
+
+/* FILTER TABS */
+.ftabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.ftab{font-size:12px;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border2);background:#FFF;color:var(--text2);cursor:pointer;font-family:'Mulish',sans-serif;transition:all .15s;font-weight:500}
+.ftab.active{background:var(--gold);color:#FFF;border-color:var(--gold);font-weight:700}
+
+/* SLIDER */
+.srow{display:flex;align-items:center;gap:12px}
+.slabel{font-size:13px;color:var(--text2);white-space:nowrap;flex-shrink:0}
+.sval{font-size:16px;font-weight:700;color:var(--gold);min-width:55px;text-align:right}
+
+/* CHAT */
+.chat-wrap{display:flex;flex-direction:column;gap:9px;margin-bottom:12px;min-height:60px}
+.msg{max-width:90%;padding:10px 13px;border-radius:var(--r-sm);font-size:14px;line-height:1.6;animation:fadeUp .2s ease}
+.msg-user{background:#FEF8EC;border:1px solid rgba(155,111,30,.2);align-self:flex-end;border-radius:var(--r-sm) var(--r-sm) 4px var(--r-sm)}
+.msg-ai{background:var(--surface2);border:1px solid var(--border);align-self:flex-start;border-radius:var(--r-sm) var(--r-sm) var(--r-sm) 4px}
+.msg-thinking{color:var(--text3);font-style:italic}
+.cinput-row{display:flex;gap:8px;align-items:flex-end}
+.quickq{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.qq{font-size:12px;padding:6px 12px;border-radius:20px;background:#FFF;border:1.5px solid var(--border2);color:var(--text2);cursor:pointer;font-weight:500;transition:all .15s}
+.qq:active{border-color:var(--gold);color:var(--gold)}
+
+/* HISTORY */
+.hist-cycle{background:#FFF;border:1px solid var(--border);border-radius:var(--r-sm);padding:13px 15px;margin-bottom:9px}
+.hist-body{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.hist-body.open{display:block}
+
+/* CHWRAP */
+.chwrap{position:relative;width:100%;height:200px;margin-bottom:8px}
+
+/* SYNC */
+.sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+.s-ok{background:var(--green)}.s-err{background:var(--red)}.s-pending{background:var(--gold);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* TOAST */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(14px);background:var(--text);color:#FFF;padding:9px 20px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.divider{border:none;border-top:1px solid var(--border);margin:13px 0}
+@media(min-width:480px){.mgrid{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="hbrand">
+    <div class="hlogo">F</div>
+    <div>
+      <div class="htitle">Family Finance</div>
+      <div class="hsub" id="sync-status"><span class="sync-dot s-pending"></span>Connecting…</div>
+    </div>
+  </div>
+  <div class="hright">
+    <div class="pay-pill"><strong id="hdr-pay">—</strong>next pay</div>
+    <button class="icon-btn" onclick="openSettings()" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="modal-settings" onclick="if(event.target===this)closeModal('settings')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('settings')">✕</button>
+    <div class="sheet-title">Settings</div>
+    <div class="balcard" id="bc-bank" onclick="toggleBal('bank')">
+      <div class="bclabel">Bank balance</div>
+      <div class="bcrow"><div class="bcval g" id="bv-bank">—</div><span style="font-size:17px;color:var(--text3)">✏️</span></div>
+      <div class="bchint">Tap to update · changes sync to all devices</div>
+      <div class="bcedit"><input type="number" id="bi-bank" placeholder="New balance" inputmode="decimal" onclick="event.stopPropagation()"><button class="btn btn-gold" onclick="event.stopPropagation();saveBal('bank')">Save</button></div>
+    </div>
+    <div class="balcard" id="bc-loc" onclick="toggleBal('loc')">
+      <div class="bclabel">LOC balance (4.65%)</div>
+      <div class="bcrow"><div class="bcval r" id="bv-loc">—</div><span style="font-size:17px;color:var(--text3)">✏️</span></div>
+      <div class="bchint">Tap to update · check TD app for current balance</div>
+      <div class="bcedit"><input type="number" id="bi-loc" placeholder="New balance" inputmode="decimal" onclick="event.stopPropagation()"><button class="btn btn-gold" onclick="event.stopPropagation();saveBal('loc')">Save</button></div>
+    </div>
+    <div class="balcard" id="bc-cc" onclick="toggleBal('cc')">
+      <div class="bclabel">Credit card balance</div>
+      <div class="bcrow"><div class="bcval gold" id="bv-cc">—</div><span style="font-size:17px;color:var(--text3)">✏️</span></div>
+      <div class="bchint">Paid in full every 2 weeks</div>
+      <div class="bcedit"><input type="number" id="bi-cc" placeholder="New balance" inputmode="decimal" onclick="event.stopPropagation()"><button class="btn btn-gold" onclick="event.stopPropagation();saveBal('cc')">Save</button></div>
+    </div>
+    <div class="balcard" id="bc-env" onclick="toggleBal('env')">
+      <div class="bclabel">Envelope budget / cycle</div>
+      <div class="bcrow"><div class="bcval" id="bv-env">—</div><span style="font-size:17px;color:var(--text3)">✏️</span></div>
+      <div class="bchint">Food + gas + pets + surplus = $1,075.81</div>
+      <div class="bcedit"><input type="number" id="bi-env" placeholder="e.g. 1075.81" inputmode="decimal" onclick="event.stopPropagation()"><button class="btn btn-gold" onclick="event.stopPropagation();saveBal('env')">Save</button></div>
+    </div>
+    <div style="margin-top:13px;padding-top:12px;border-top:1px solid var(--border)">
+      <p style="font-size:12px;color:var(--text3);line-height:1.7;margin-bottom:10px">All data syncs across devices via Supabase. Income: $5,278.63/cycle · HELOC 4.65% · Surplus: $320.17/mo</p>
+    </div>
+  </div>
+</div>
+
+<!-- PAY BILL MODAL -->
+<div class="overlay" id="modal-paybill" onclick="if(event.target===this)closeModal('paybill')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('paybill')">✕</button>
+    <div class="sheet-title" id="pb-title">Mark bill as paid</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px" id="pb-sub">—</p>
+    <div style="margin-bottom:14px">
+      <label>Actual amount paid ($)</label>
+      <input type="number" id="pb-amount" inputmode="decimal" oninput="previewBillDiff()">
+    </div>
+    <div id="pb-diff" style="display:none;margin-bottom:12px"></div>
+    <label style="margin-bottom:10px;display:block">Paid from</label>
+    <div class="source-btns">
+      <div class="src-btn" id="src-bank" onclick="selectSource('bank')">🏦 Bank</div>
+      <div class="src-btn" id="src-loc" onclick="selectSource('loc')">📋 LOC</div>
+      <div class="src-btn" id="src-cc" onclick="selectSource('cc')">💳 CC</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label>Date paid</label>
+      <input type="text" id="pb-date" placeholder="e.g. May 15">
+    </div>
+    <div style="margin-bottom:14px">
+      <label>Next due date</label>
+      <input type="text" id="pb-nextdue" placeholder="e.g. Jun 15">
+    </div>
+    <input type="hidden" id="pb-bill-id">
+    <button class="btn btn-gold btn-full" onclick="confirmPayBill()">Confirm payment</button>
+  </div>
+</div>
+
+<!-- SINK FUND MODAL -->
+<div class="overlay" id="modal-sink" onclick="if(event.target===this)closeModal('sink')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('sink')">✕</button>
+    <div class="sheet-title" id="sink-title">Add sink fund</div>
+    <div style="margin-bottom:10px"><label>Name</label><input type="text" id="sink-name" placeholder="e.g. Car maintenance"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px">
+      <div><label>Save per cycle ($)</label><input type="number" id="sink-per" placeholder="65.73" inputmode="decimal"></div>
+      <div><label>Current balance ($)</label><input type="number" id="sink-bal" placeholder="0.00" inputmode="decimal"></div>
+    </div>
+    <div style="margin-bottom:14px"><label>Notes</label><input type="text" id="sink-notes" placeholder="e.g. $262.94 every 8 weeks"></div>
+    <input type="hidden" id="sink-edit-id">
+    <button class="btn btn-gold btn-full" onclick="saveSinkFund()">Save</button>
+  </div>
+</div>
+
+<!-- SINK SPEND MODAL -->
+<div class="overlay" id="modal-sink-spend" onclick="if(event.target===this)closeModal('sink-spend')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('sink-spend')">✕</button>
+    <div class="sheet-title" id="ss-title">Log spend</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px" id="ss-sub">—</p>
+    <div style="margin-bottom:10px"><label>Amount ($)</label><input type="number" id="ss-amt" placeholder="0.00" inputmode="decimal"></div>
+    <div style="margin-bottom:14px"><label>Note</label><input type="text" id="ss-note" placeholder="e.g. Vet visit"></div>
+    <input type="hidden" id="ss-id">
+    <button class="btn btn-gold btn-full" onclick="saveSinkSpend()">Log spend</button>
+  </div>
+</div>
+
+<main class="main">
+
+<!-- OVERVIEW -->
+<div id="panel-overview" class="panel active">
+  <div class="mgrid">
+    <div class="met"><div class="mlabel">Bank</div><div class="mval g" id="ov-bank">—</div></div>
+    <div class="met"><div class="mlabel">LOC</div><div class="mval r" id="ov-loc">—</div></div>
+    <div class="met"><div class="mlabel">CC balance</div><div class="mval gold" id="ov-cc">—</div></div>
+    <div class="met"><div class="mlabel">Envelope left</div><div class="mval" id="ov-env">—</div></div>
+  </div>
+  <div class="card">
+    <div class="ctitle">Next pay days</div>
+    <div class="row"><div><div class="rname">Jaclyn</div><div class="rsub">$2,629.32 biweekly</div></div><span class="ramt gold" id="ov-jaclyn">—</span></div>
+    <div class="row"><div><div class="rname">Shawn</div><div class="rsub">$2,649.31 biweekly</div></div><span class="ramt gold" id="ov-shawn">—</span></div>
+  </div>
+  <div class="card"><div class="ctitle">Bills due — next 14 days</div><div id="ov-bills">—</div></div>
+  <div id="ov-insights"></div>
+</div>
+
+<!-- PAY DAY -->
+<div id="panel-checklist" class="panel">
+  <div class="stitle">Pay day</div>
+  <div class="ssub">Your step-by-step pay day routine</div>
+  <div class="mgrid" style="margin-bottom:12px">
+    <div class="met"><div class="mlabel">Combined income</div><div class="mval g">$5,279</div></div>
+    <div class="met"><div class="mlabel">Steps done</div><div class="mval gold" id="cl-prog">0 / 9</div></div>
+  </div>
+  <div class="card"><div class="ctitle">Step 1 — First thing</div><div id="cl-immediate"></div></div>
+  <div class="card"><div class="ctitle">Step 2 — Pay & transfer</div><div id="cl-bills"></div></div>
+  <div class="card"><div class="ctitle">Step 3 — LOC paydown</div><div id="cl-loc"></div></div>
+  <div class="card"><div class="ctitle">Step 4 — Check in</div><div id="cl-review"></div></div>
+  <div class="brow"><button class="btn btn-red btn-sm" onclick="resetChecklist()">Reset checklist only</button></div>
+</div>
+
+<!-- ENVELOPE -->
+<div id="panel-envelope" class="panel">
+  <div class="stitle">Envelope</div>
+  <div class="ssub">Food, gas, pets + $160 surplus — resets each cycle</div>
+  <div class="mgrid">
+    <div class="met"><div class="mlabel">Budget</div><div class="mval" id="env-bud">—</div></div>
+    <div class="met"><div class="mlabel">Spent</div><div class="mval gold" id="env-spent">$0</div></div>
+    <div class="met"><div class="mlabel">Remaining</div><div class="mval" id="env-rem">—</div></div>
+    <div class="met"><div class="mlabel">Used</div><div class="mval" id="env-pct">0%</div></div>
+  </div>
+  <div class="prog" style="height:14px;margin-bottom:5px"><div class="pbar" id="env-bar" style="width:0%"></div></div>
+  <p style="font-size:12px;color:var(--text2);margin-bottom:15px" id="env-msg">—</p>
+  <div id="env-cats"></div>
+  <div class="card">
+    <div class="ctitle">Log a spend</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px">
+      <div><label>Category</label>
+        <select id="log-cat">
+          <option value="food">🛒 Food & groceries</option>
+          <option value="gas">⛽ Shawn gas</option>
+          <option value="pets">🐾 Pets</option>
+          <option value="kids">🏀 Kids / activities</option>
+          <option value="misc">🛍 Misc / clothing</option>
+        </select>
+      </div>
+      <div><label>Amount ($)</label><input type="number" id="log-amt" placeholder="0.00" inputmode="decimal"></div>
+    </div>
+    <label>Note (optional)</label>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+      <input type="text" id="log-note" placeholder="e.g. Loblaws">
+      <button class="btn btn-gold" onclick="logSpend()">Add</button>
+    </div>
+  </div>
+  <div class="card" id="log-hist" style="display:none">
+    <div class="ctitle">This cycle's log</div>
+    <div id="log-list"></div>
+  </div>
+  <div class="ins w" style="margin-top:4px">⚠️ <strong>Reset cycle</strong> only clears this spending log. Bill paid dates, balances, and history are never affected.</div>
+  <div class="brow"><button class="btn btn-red btn-sm" onclick="resetEnvelope()">New cycle — clear spending log</button></div>
+</div>
+
+<!-- LOC & BILLS -->
+<div id="panel-loc" class="panel">
+  <div class="stitle">LOC & Bills</div>
+  <div class="mgrid" style="margin-bottom:11px">
+    <div class="met"><div class="mlabel">LOC balance</div><div class="mval r" id="loc-bal">—</div></div>
+    <div class="met"><div class="mlabel">Monthly interest</div><div class="mval gold" id="loc-int">—</div></div>
+  </div>
+  <div class="card">
+    <div class="ctitle">Extra payment simulator</div>
+    <div class="srow" style="margin-bottom:12px">
+      <span class="slabel">Extra / month</span>
+      <input type="range" min="0" max="1500" step="50" value="300" id="loc-sl" oninput="updateLocSim()">
+      <span class="sval" id="loc-sl-val">$300</span>
+    </div>
+    <div class="mgrid" style="margin-bottom:0">
+      <div class="met"><div class="mlabel">Balance in 1 yr</div><div class="mval" id="sim-1yr">—</div></div>
+      <div class="met"><div class="mlabel">Payoff</div><div class="mval g" id="sim-pay">—</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ctitle">12-month projection</div>
+    <div class="chwrap"><canvas id="loc-chart"></canvas></div>
+    <div style="display:flex;gap:14px;font-size:11px;color:var(--text2)">
+      <span><span style="display:inline-block;width:10px;height:2px;background:var(--red);margin-right:4px;vertical-align:middle"></span>No extra</span>
+      <span><span style="display:inline-block;width:10px;height:2px;background:var(--green);margin-right:4px;vertical-align:middle"></span>With extra</span>
+    </div>
+  </div>
+  <hr class="divider">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+    <div style="font-size:15px;font-weight:600">Bills</div>
+    <span style="font-size:11px;color:var(--text2)">Tap bill to log actual & mark paid</span>
+  </div>
+  <div class="ftabs">
+    <button class="ftab active" onclick="filterBills('all',this)">All</button>
+    <button class="ftab" onclick="filterBills('bank',this)">Bank</button>
+    <button class="ftab" onclick="filterBills('cc',this)">CC</button>
+    <button class="ftab" onclick="filterBills('loc',this)">LOC</button>
+    <button class="ftab" onclick="filterBills('paid',this)">Paid ✓</button>
+  </div>
+  <div class="card" style="padding:11px 17px"><div id="bills-list"></div></div>
+  <hr class="divider">
+  <div style="font-size:15px;font-weight:600;margin-bottom:4px">Sink funds</div>
+  <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Irregular expenses — balance rolls forward, never resets.</p>
+  <div id="sink-list"></div>
+  <div class="brow"><button class="btn btn-sm" onclick="openModal('sink')">+ Add sink fund</button></div>
+</div>
+
+<!-- HISTORY & TRANSACTIONS -->
+<div id="panel-history" class="panel">
+  <div class="stitle">History</div>
+  <div class="ssub">Transactions, cycles & spending trends</div>
+  <div class="ftabs">
+    <button class="ftab active" onclick="showHistTab('txn',this)">Transactions</button>
+    <button class="ftab" onclick="showHistTab('cycles',this)">Cycles</button>
+    <button class="ftab" onclick="showHistTab('charts',this)">Charts</button>
+  </div>
+  <div id="hist-txn">
+    <div class="card" style="padding:11px 17px"><div id="txn-list"><p style="font-size:13px;color:var(--text3);padding:8px 0">No transactions yet.</p></div></div>
+  </div>
+  <div id="hist-cycles" style="display:none">
+    <div id="cycle-list"><p style="font-size:13px;color:var(--text3);text-align:center;padding:20px 0">Complete your first cycle to see history.</p></div>
+  </div>
+  <div id="hist-charts" style="display:none">
+    <div class="card"><div class="ctitle">LOC balance over time</div><div class="chwrap"><canvas id="hist-loc-chart"></canvas></div></div>
+    <div class="card"><div class="ctitle">Envelope spending by category</div><div class="chwrap"><canvas id="hist-env-chart"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ASSISTANT -->
+<div id="panel-ai" class="panel">
+  <div class="stitle">Assistant</div>
+  <div class="ssub">Ask anything about your finances</div>
+  <div class="quickq">
+    <span class="qq" onclick="askQ(this)">What do I need to pay this week?</span>
+    <span class="qq" onclick="askQ(this)">How is our LOC tracking?</span>
+    <span class="qq" onclick="askQ(this)">How much can we spend this cycle?</span>
+    <span class="qq" onclick="askQ(this)">Are we on budget?</span>
+    <span class="qq" onclick="askQ(this)">What's our debt payoff timeline?</span>
+    <span class="qq" onclick="askQ(this)">Show me spending trends</span>
+  </div>
+  <div class="card" style="padding:13px">
+    <div class="chat-wrap" id="chat-wrap">
+      <div class="msg msg-ai">Hi! I'm your family finance assistant. I know your full financial picture. Ask me anything.</div>
+    </div>
+    <div class="cinput-row">
+      <textarea id="chat-input" placeholder="Ask a question…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+      <button class="btn btn-gold" onclick="sendChat()" style="padding:10px 15px;flex-shrink:0">→</button>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<nav class="bnav">
+  <button class="ni active" onclick="showPanel('overview',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Overview
+  </button>
+  <button class="ni" onclick="showPanel('checklist',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    Pay day
+  </button>
+  <button class="ni" onclick="showPanel('envelope',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2"/><polyline points="2,5 12,13 22,5"/></svg>
+    Envelope
+  </button>
+  <button class="ni" onclick="showPanel('loc',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+    LOC & Bills
+  </button>
+  <button class="ni" onclick="showPanel('history',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    History
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════ CONFIG ═══════════════════
+const SUPABASE_URL = 'https://vqcysaxjccghtjakmori.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxY3lzYXhqY2NnaHRqYWttb3JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyOTk2MDAsImV4cCI6MjA5Mzg3NTYwMH0.UzwG_52Y4pDjlflNmjry6UMiVmQsj6GaOEfWa_uz1ig';
+
+// ═══════════════════ CONSTANTS ═══════════════════
+const JACLYN_BASE = new Date(2026,4,1);
+const SHAWN_BASE  = new Date(2026,3,30);
+const LOC_RATE    = 0.0465;
+const INCOME      = 5278.63;
+const DEFAULT_ENV = 1075.81;
+
+const BILLS = [
+  {id:'b01',name:'407 ETR',                  amt:125,    day:5,  type:'cc'},
+  {id:'b02',name:'Enbridge gas → LOC',       amt:125,    day:5,  type:'loc'},
+  {id:'b03',name:'Abilities Centre',         amt:142.38, day:1,  type:'cc'},
+  {id:'b04',name:'Unicef',                   amt:25,     day:1,  type:'cc'},
+  {id:'b05',name:'Telus Internet',           amt:89.27,  day:14, type:'cc'},
+  {id:'b06',name:'Reliance water heater',    amt:100,    day:15, type:'cc'},
+  {id:'b07',name:'Jaclyn Life Insurance',    amt:34.74,  day:15, type:'bank'},
+  {id:'b08',name:'Shawn Car → LOC',          amt:580,    day:15, type:'loc'},
+  {id:'b09',name:'Feed the Need',            amt:31.40,  day:15, type:'cc'},
+  {id:'b10',name:'Mortgage',                 amt:3600,   day:16, type:'bank'},
+  {id:'b11',name:'House Insurance',          amt:151.23, day:19, type:'bank'},
+  {id:'b12',name:'Car Insurance',            amt:390,    day:19, type:'bank'},
+  {id:'b13',name:'Rogers Cell Phones',       amt:107.79, day:21, type:'cc'},
+  {id:'b14',name:'Apple subscription',       amt:16.94,  day:23, type:'cc'},
+  {id:'b15',name:'Apple iCloud',             amt:5.00,   day:24, type:'cc'},
+  {id:'b16',name:'Toyota subscription',      amt:11.24,  day:25, type:'cc'},
+  {id:'b17',name:'Oshawa Power → LOC',       amt:145.61, day:25, type:'loc'},
+  {id:'b18',name:'Jaclyn & Chase Equitable', amt:432.94, day:30, type:'bank'},
+  {id:'b19',name:'TD Transfer',              amt:110,    day:30, type:'bank'},
+  {id:'b20',name:'Property Tax → LOC',       amt:650,    day:30, type:'loc',  note:'Accumulates in LOC — not from envelope'},
+  {id:'b21',name:'Water → LOC',              amt:160,    day:30, type:'loc',  note:'Accumulates in LOC — not from envelope'},
+  {id:'b22',name:'Presto transit',           amt:400,    day:1,  type:'cc',   note:'Monthly fixed — not from envelope'},
+  {id:'b23',name:'Jaclyn car payment',       amt:672.08, day:1,  type:'bank', note:'Monthly — auto-debit'},
+];
+
+const ENV_CATS = {
+  food:{label:'Food & groceries',color:'#1A6B3C',emoji:'🛒',pct:.74},
+  gas: {label:'Shawn gas',       color:'#1A4A8A',emoji:'⛽',pct:.05},
+  pets:{label:'Pets',            color:'#9B6F1E',emoji:'🐾',pct:.06},
+  kids:{label:'Kids / activities',color:'#6D28D9',emoji:'🏀',pct:.08},
+  misc:{label:'Misc / clothing', color:'#9B4A10',emoji:'🛍',pct:.07},
+};
+
+const CHECKLIST = [
+  {id:'c1',group:'immediate',title:'Update bank balance',sub:'Tap ⚙️ → enter today\'s deposit',amt:''},
+  {id:'c2',group:'immediate',title:'Pay credit card in full',sub:'Mark CC paid in LOC & Bills — choose "Bank" as source',amt:''},
+  {id:'c3',group:'immediate',title:'Reset the spending envelope',sub:'Envelope tab → "New cycle — clear spending log"',amt:'$1,075.81'},
+  {id:'c4',group:'bills',title:'Transfer to LOC: Shawn car + prop tax + water',sub:'$580 car + $650 property tax + $160 water — mark each as paid from Bank',amt:'$1,390'},
+  {id:'c5',group:'bills',title:'Check bills due this week',sub:'LOC & Bills tab — mark any due soon as paid',amt:''},
+  {id:'c6',group:'bills',title:'Add cycle to each sink fund',sub:'LOC & Bills → Sink funds → tap "+ Add cycle" for each',amt:''},
+  {id:'c7',group:'loc',title:'Make extra LOC principal payment',sub:'Any genuinely leftover money → LOC',amt:'Any extra'},
+  {id:'c8',group:'loc',title:'Update LOC balance',sub:'Check TD app then tap ⚙️ to update',amt:''},
+  {id:'c9',group:'review',title:'Review envelope from last cycle',sub:'Did you stay within $1,075.81? What went over?',amt:''},
+];
+
+// ═══════════════════ STATE (loaded from Supabase) ═══════════════════
+let db = null;
+let S = {
+  bank:6410.67, loc:52411.51, cc:0,
+  envelope:DEFAULT_ENV,
+  envSpent:{food:0,gas:0,pets:0,kids:0,misc:0},
+  envLog:[],
+  checkDone:{},
+  billData:{},   // {billId: {paid, paidDate, nextDue, actualAmt, paidFrom}}
+  sinkFunds:[{id:'sf_pets',name:'Pets',perCycle:65.73,balance:0,notes:'$262.94 every 8 weeks (2 cats + dog)'}],
+  cycleStart:new Date().toISOString().split('T')[0],
+};
+let txnHistory = [];
+let cycleHistory = [];
+let selectedPaySource = null;
+let currentPayBillId = null;
+let histCharts = {};
+
+// ═══════════════════ SUPABASE ═══════════════════
+async function initDB(){
+  try{
+    db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:false,autoRefreshToken:false}});
+    await loadFromDB();
+    setSyncStatus('ok','Synced ✓');
+  } catch(e){
+    setSyncStatus('err','Sync error');
+    console.error(e);
+  }
+}
+
+function setSyncStatus(state,msg){
+  const dot = state==='ok'?'s-ok':state==='err'?'s-err':'s-pending';
+  document.getElementById('sync-status').innerHTML=`<span class="sync-dot ${dot}"></span>${msg}`;
+}
+
+async function loadFromDB(){
+  if(!db) return;
+  setSyncStatus('pending','Loading…');
+  try{
+    // Load main state
+    const {data:st} = await db.from('app_state').select('*').eq('id',1).single();
+    if(st && st.state_json) S = {...S, ...JSON.parse(st.state_json)};
+
+    // Load transaction history
+    const {data:txns} = await db.from('transactions').select('*').order('created_at',{ascending:false}).limit(100);
+    txnHistory = txns||[];
+
+    // Load cycle history
+    const {data:cyc} = await db.from('cycles').select('*').order('cycle_start',{ascending:false}).limit(26);
+    cycleHistory = cyc||[];
+
+    renderAll();
+    setSyncStatus('ok','Synced ✓');
+  } catch(e){
+    setSyncStatus('err','Load error');
+    console.error('Load error:',e);
+  }
+}
+
+async function saveToDB(toastMsg){
+  if(!db){ toast(toastMsg||'Saved locally'); return; }
+  setSyncStatus('pending','Saving…');
+  try{
+    await db.from('app_state').upsert({id:1, state_json:JSON.stringify(S), updated_at:new Date().toISOString()});
+    setSyncStatus('ok','Synced ✓');
+    if(toastMsg) toast(toastMsg);
+  } catch(e){
+    setSyncStatus('err','Save error');
+    console.error('Save error:',e);
+    if(toastMsg) toast(toastMsg+' (sync failed)');
+  }
+}
+
+async function logTransaction(desc, amount, type, account, note=''){
+  const txn = {
+    description: desc,
+    amount: Math.abs(amount),
+    type: type, // 'debit' or 'credit'
+    account: account, // 'bank', 'loc', 'cc'
+    note: note,
+    created_at: new Date().toISOString(),
+    date_display: new Date().toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})
+  };
+  txnHistory.unshift(txn);
+  if(db){
+    try{ await db.from('transactions').insert(txn); } catch(e){ console.error('Txn log error',e); }
+  }
+  renderTxnList();
+}
+
+// ═══════════════════ UTILS ═══════════════════
+function fmt(n,d=0){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function f2(n){return fmt(n,2);}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800);}
+function nextPay(base){const t=new Date();t.setHours(0,0,0,0);let i=0;while(true){const d=new Date(base.getTime()+i*14*86400000);if(d>=t)return d;i++;}}
+function nextOcc(day){const t=new Date();t.setHours(0,0,0,0);let d=new Date(t.getFullYear(),t.getMonth(),day);if(d<t)d=new Date(t.getFullYear(),t.getMonth()+1,day);return d;}
+function daysUntil(d){const t=new Date();t.setHours(0,0,0,0);return Math.round((d-t)/86400000);}
+function fmtDate(d){return d.toLocaleDateString('en-CA',{month:'short',day:'numeric'});}
+function daysBadge(n){if(n<=2)return'<span class="badge b-due">Due now</span>';if(n<=7)return'<span class="badge b-soon">'+n+'d</span>';return'<span class="badge b-ok">'+n+'d</span>';}
+function typeBadge(t){if(t==='loc')return'<span class="badge b-loc">LOC</span>';if(t==='cc')return'<span class="badge b-cc">CC</span>';return'<span class="badge b-bank">Bank</span>';}
+
+function getBillOverages(){
+  return Object.entries(S.billData).reduce((sum,[id,d])=>{
+    const bill=BILLS.find(b=>b.id===id);
+    if(!bill||!d.actualAmt) return sum;
+    const diff=d.actualAmt-bill.amt;
+    // Water and Property Tax overages do NOT reduce envelope
+    if(id==='b20'||id==='b21') return sum;
+    return diff>0?sum+diff:sum;
+  },0);
+}
+
+function getEffEnv(){return S.envelope - getBillOverages();}
+
+// ═══════════════════ MODALS ═══════════════════
+function openModal(name){
+  const m=document.getElementById('modal-'+name);
+  m.style.display='flex';
+  m.classList.add('open');
+}
+function closeModal(name){
+  const m=document.getElementById('modal-'+name);
+  m.classList.remove('open');
+  m.style.display='';
+}
+
+function openSettings(){
+  document.getElementById('bv-bank').textContent=f2(S.bank);
+  document.getElementById('bv-loc').textContent=fmt(S.loc);
+  document.getElementById('bv-cc').textContent=f2(S.cc);
+  document.getElementById('bv-env').textContent=f2(S.envelope);
+  openModal('settings');
+}
+
+function toggleBal(key){
+  const card=document.getElementById('bc-'+key);
+  const was=card.classList.contains('editing');
+  ['bank','loc','cc','env'].forEach(k=>document.getElementById('bc-'+k).classList.remove('editing'));
+  if(!was){card.classList.add('editing');setTimeout(()=>document.getElementById('bi-'+key).focus(),80);}
+}
+
+async function saveBal(key){
+  const val=parseFloat(document.getElementById('bi-'+key).value);
+  if(isNaN(val)||val<0){toast('Enter a valid amount');return;}
+  if(key==='env') S.envelope=val; else S[key]=val;
+  document.getElementById('bi-'+key).value='';
+  document.getElementById('bc-'+key).classList.remove('editing');
+  document.getElementById('bv-'+key).textContent=(key==='env'||key==='bank'||key==='cc')?f2(val):fmt(val);
+  await saveToDB(key==='bank'?'Bank updated ✓':key==='loc'?'LOC updated ✓':key==='cc'?'CC updated ✓':'Envelope updated ✓');
+  renderAll();
+}
+
+// ═══════════════════ BILL PAYMENT ═══════════════════
+function openPayBill(billId){
+  const bill=BILLS.find(b=>b.id===billId);
+  if(!bill){toast('Bill not found');return;}
+  currentPayBillId=billId;
+  selectedPaySource=null;
+  document.getElementById('pb-title').textContent='Pay — '+bill.name;
+  document.getElementById('pb-sub').textContent=`Budgeted: ${f2(bill.amt)} · Select where this is paid from`;
+  document.getElementById('pb-amount').value=bill.amt.toFixed(2);
+  document.getElementById('pb-diff').style.display='none';
+  document.getElementById('pb-date').value=fmtDate(new Date());
+  const next=new Date(nextOcc(bill.day));
+  next.setMonth(next.getMonth()+1);
+  document.getElementById('pb-nextdue').value=fmtDate(next);
+  // Pre-select source based on bill type
+  ['bank','loc','cc'].forEach(s=>document.getElementById('src-'+s).classList.remove('selected'));
+  selectSource(bill.type==='bank'?'bank':'bank');
+  // Force modal open
+  const modal=document.getElementById('modal-paybill');
+  modal.style.display='flex';
+  modal.classList.add('open');
+}
+
+function selectSource(src){
+  selectedPaySource=src;
+  ['bank','loc','cc'].forEach(s=>document.getElementById('src-'+s).classList.toggle('selected',s===src));
+}
+
+function previewBillDiff(){
+  const actual=parseFloat(document.getElementById('pb-amount').value)||0;
+  const bill=BILLS.find(b=>b.id===currentPayBillId);
+  if(!bill||!actual) return;
+  const diff=actual-bill.amt;
+  const divEl=document.getElementById('pb-diff');
+  divEl.style.display='block';
+  const isLocBill = bill.id==='b20'||bill.id==='b21';
+  if(diff>0){
+    const msg = isLocBill
+      ? `$${diff.toFixed(2)} over budget — absorbed by LOC (not from envelope)`
+      : `$${diff.toFixed(2)} over budget — will reduce envelope by this amount`;
+    divEl.innerHTML=`<div class="ins w">⚠️ ${msg}</div>`;
+  } else if(diff<0){
+    divEl.innerHTML=`<div class="ins g">✓ $${Math.abs(diff).toFixed(2)} under budget.</div>`;
+  } else {
+    divEl.innerHTML=`<div class="ins g">✓ Exactly on budget.</div>`;
+  }
+}
+
+async function confirmPayBill(){
+  const bill=BILLS.find(b=>b.id===currentPayBillId);
+  if(!bill){toast('Error — bill not found');return;}
+  if(!selectedPaySource){toast('Please select where this is paid from');return;}
+
+  const actual=parseFloat(document.getElementById('pb-amount').value)||bill.amt;
+  const paidDate=document.getElementById('pb-date').value||fmtDate(new Date());
+  const nextDue=document.getElementById('pb-nextdue').value;
+  const diff=actual-bill.amt;
+
+  // Update bill data
+  if(!S.billData[currentPayBillId]) S.billData[currentPayBillId]={};
+  S.billData[currentPayBillId] = {paid:true, paidDate, nextDue, actualAmt:actual, paidFrom:selectedPaySource};
+
+  // Deduct from source account
+  if(selectedPaySource==='bank') S.bank = Math.max(0, S.bank - actual);
+  else if(selectedPaySource==='loc') S.loc = S.loc + actual; // paying from LOC increases LOC balance
+  else if(selectedPaySource==='cc') S.cc = Math.max(0, S.cc - actual);
+
+  // Log transaction
+  await logTransaction(`${bill.name}`, actual, 'debit', selectedPaySource, `Paid ${paidDate}`);
+
+  closeModal('paybill');
+  await saveToDB(`${bill.name} marked paid ✓`);
+  renderAll();
+}
+
+// ═══════════════════ OVERVIEW ═══════════════════
+function renderOverview(){
+  const jNext=nextPay(JACLYN_BASE), sNext=nextPay(SHAWN_BASE);
+  const nearest=jNext<sNext?jNext:sNext;
+  const d=daysUntil(nearest);
+  document.getElementById('hdr-pay').textContent=d===0?'Today!':d===1?'Tomorrow':fmtDate(nearest);
+  document.getElementById('ov-jaclyn').textContent=fmtDate(jNext);
+  document.getElementById('ov-shawn').textContent=fmtDate(sNext);
+  document.getElementById('ov-bank').textContent=f2(S.bank);
+  document.getElementById('ov-loc').textContent=fmt(S.loc);
+  document.getElementById('ov-cc').textContent=f2(S.cc);
+
+  const spent=Object.values(S.envSpent).reduce((a,b)=>a+b,0);
+  const effEnv=getEffEnv();
+  const rem=effEnv-spent;
+  const envEl=document.getElementById('ov-env');
+  envEl.textContent=f2(Math.max(0,rem));
+  envEl.className='mval '+(rem>effEnv*.3?'g':rem>0?'gold':'r');
+
+  const bills=[...BILLS].map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))})).filter(b=>b.days<=14).sort((a,b)=>a.days-b.days);
+  document.getElementById('ov-bills').innerHTML=bills.length
+    ?bills.map(b=>{
+      const bd=S.billData[b.id]||{};
+      const amt=bd.actualAmt||b.amt;
+      return `<div class="row">
+        <div><div class="rname">${b.name}</div><div class="rsub">${fmtDate(b.next)} · ${typeBadge(b.type)}${bd.paid?` · <span class="paid-chip">Paid ${bd.paidDate||''}</span>`:''}</div></div>
+        <div class="rright">${daysBadge(b.days)}<span class="ramt">${f2(amt)}</span></div>
+      </div>`;
+    }).join('')
+    :'<p style="font-size:13px;color:var(--text3);padding:6px 0">No bills due in the next 14 days.</p>';
+
+  let ins='';
+  const urgent=bills.filter(b=>b.days<=3&&!S.billData[b.id]?.paid);
+  if(urgent.length) ins+=`<div class="ins w">⚠️ <strong>${urgent.length} unpaid bill${urgent.length>1?'s':''} due within 3 days.</strong></div>`;
+  if(rem<0) ins+=`<div class="ins r">🚨 Envelope exceeded by ${f2(Math.abs(rem))}.</div>`;
+  else if(rem<effEnv*.2) ins+=`<div class="ins w">⚠️ Only ${f2(rem)} left in envelope this cycle.</div>`;
+  else ins+=`<div class="ins g">✓ Envelope on track — ${f2(rem)} remaining.</div>`;
+  ins+=`<div class="ins b">💡 LOC interest this month: ${f2(S.loc*LOC_RATE/12)}. Monthly surplus: $320.17.</div>`;
+  if(d<=1) ins+=`<div class="ins gold">💰 Pay day ${d===0?'today':'tomorrow'} — go to Pay day tab!</div>`;
+  document.getElementById('ov-insights').innerHTML=ins;
+}
+
+// ═══════════════════ CHECKLIST ═══════════════════
+function renderChecklist(){
+  const groups={immediate:[],bills:[],loc:[],review:[]};
+  CHECKLIST.forEach(c=>groups[c.group].push(c));
+  const ids={immediate:'cl-immediate',bills:'cl-bills',loc:'cl-loc',review:'cl-review'};
+  let done=0;
+  Object.entries(groups).forEach(([g,items])=>{
+    document.getElementById(ids[g]).innerHTML=items.map(item=>{
+      const isDone=!!S.checkDone[item.id];
+      if(isDone) done++;
+      return `<div class="cli ${isDone?'done':''}" onclick="toggleCheck('${item.id}')">
+        <div class="chkbox"><span class="chkicon">✓</span></div>
+        <div style="flex:1"><div class="chtitle">${item.title}</div><div class="chsub">${item.sub}</div></div>
+        ${item.amt?`<div class="chamt">${item.amt}</div>`:''}
+      </div>`;
+    }).join('');
+  });
+  document.getElementById('cl-prog').textContent=`${done} / ${CHECKLIST.length}`;
+}
+
+async function toggleCheck(id){S.checkDone[id]=!S.checkDone[id];await saveToDB();renderChecklist();}
+async function resetChecklist(){if(!confirm('Reset checklist?'))return;S.checkDone={};await saveToDB('Checklist reset ✓');renderChecklist();}
+
+// ═══════════════════ ENVELOPE ═══════════════════
+function renderEnvelope(){
+  const spent=Object.values(S.envSpent).reduce((a,b)=>a+b,0);
+  const effEnv=getEffEnv();
+  const rem=effEnv-spent;
+  const pct=Math.min(100,effEnv>0?Math.round(spent/effEnv*100):0);
+  const overages=getBillOverages();
+
+  document.getElementById('env-bud').textContent=f2(effEnv);
+  document.getElementById('env-spent').textContent=f2(spent);
+  const remEl=document.getElementById('env-rem');
+  remEl.textContent=f2(Math.max(0,rem));
+  remEl.className='mval '+(rem>effEnv*.3?'g':rem>0?'gold':'r');
+  document.getElementById('env-pct').textContent=pct+'%';
+
+  const bar=document.getElementById('env-bar');
+  bar.style.width=pct+'%';
+  bar.style.background=pct<70?'var(--green)':pct<90?'var(--orange)':'var(--red)';
+  let msg=pct>=100?`Over by ${f2(Math.abs(rem))}.`:pct>=80?`Almost gone — ${f2(Math.max(0,rem))} left.`:`${f2(Math.max(0,rem))} remaining this cycle.`;
+  if(overages>0) msg+=` (incl. ${f2(overages)} bill overages)`;
+  document.getElementById('env-msg').textContent=msg;
+
+  document.getElementById('env-cats').innerHTML=Object.entries(ENV_CATS).map(([k,cat])=>{
+    const s=S.envSpent[k]||0;
+    const bud=effEnv*cat.pct;
+    const cp=Math.min(100,bud>0?Math.round(s/bud*100):0);
+    return `<div class="ecat"><div class="echead"><span class="ecname">${cat.emoji} ${cat.label}</span><span class="ecmeta">${f2(s)} <span style="color:var(--text3)">/ ${f2(bud)}</span></span></div><div class="prog"><div class="pbar" style="width:${cp}%;background:${cat.color}"></div></div></div>`;
+  }).join('');
+
+  const logCard=document.getElementById('log-hist');
+  if(S.envLog.length>0){
+    logCard.style.display='block';
+    document.getElementById('log-list').innerHTML=[...S.envLog].reverse().map((l,i)=>`
+      <div class="row">
+        <div><div class="rname">${ENV_CATS[l.cat]?.label||l.cat}</div>${l.note?`<div class="rsub">${l.note}</div>`:''}${l.date?`<div class="rsub">${l.date}</div>`:''}</div>
+        <div class="rright"><span class="ramt">${f2(l.amt)}</span><span style="font-size:11px;color:var(--red);cursor:pointer;padding:3px 7px" onclick="delLog(${S.envLog.length-1-i})">✕</span></div>
+      </div>`).join('');
+  } else logCard.style.display='none';
+}
+
+async function logSpend(){
+  const cat=document.getElementById('log-cat').value;
+  const amt=parseFloat(document.getElementById('log-amt').value)||0;
+  const note=document.getElementById('log-note').value.trim();
+  if(amt<=0){toast('Enter an amount');return;}
+  S.envSpent[cat]=(S.envSpent[cat]||0)+amt;
+  const entry={cat,amt,note,date:new Date().toLocaleDateString('en-CA',{month:'short',day:'numeric'})};
+  S.envLog.push(entry);
+  document.getElementById('log-amt').value='';
+  document.getElementById('log-note').value='';
+  await saveToDB(`Logged ${f2(amt)} ✓`);
+  renderEnvelope(); renderOverview();
+}
+
+async function delLog(idx){
+  const l=S.envLog[idx];
+  S.envSpent[l.cat]=Math.max(0,(S.envSpent[l.cat]||0)-l.amt);
+  S.envLog.splice(idx,1);
+  await saveToDB('Entry removed');
+  renderEnvelope(); renderOverview();
+}
+
+async function resetEnvelope(){
+  if(!confirm('Clear spending log for new cycle?\n\nBill paid dates, balances, and all other data will NOT be affected.'))return;
+
+  // Save cycle to history before clearing
+  const spent=Object.values(S.envSpent).reduce((a,b)=>a+b,0);
+  if(db){
+    try{
+      await db.from('cycles').upsert({
+        cycle_start:S.cycleStart,
+        bank_balance:S.bank, loc_balance:S.loc, cc_balance:S.cc,
+        envelope_budget:S.envelope, envelope_spent:spent,
+        food_spent:S.envSpent.food||0, gas_spent:S.envSpent.gas||0,
+        pets_spent:S.envSpent.pets||0, kids_spent:S.envSpent.kids||0,
+        misc_spent:S.envSpent.misc||0, saved_at:new Date().toISOString()
+      });
+    } catch(e){console.error('Cycle save error',e);}
+  }
+
+  // ONLY reset envelope spending — nothing else
+  S.envSpent={food:0,gas:0,pets:0,kids:0,misc:0};
+  S.envLog=[];
+  S.checkDone={};
+  S.cycleStart=new Date().toISOString().split('T')[0];
+  // billData, sinkFunds, balances ALL preserved
+
+  await saveToDB('Cycle saved & envelope reset ✓');
+  await loadFromDB();
+  renderAll();
+}
+
+// ═══════════════════ BILLS ═══════════════════
+let billFilter='all';
+function filterBills(f,el){billFilter=f;document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderBills();}
+
+function renderBills(){
+  let list=[...BILLS].map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))})).sort((a,b)=>a.days-b.days);
+  if(billFilter==='paid') list=list.filter(b=>S.billData[b.id]?.paid);
+  else if(billFilter!=='all') list=list.filter(b=>b.type===billFilter);
+
+  document.getElementById('bills-list').innerHTML = list.map(b=>{
+    const bd=S.billData[b.id]||{};
+    const isPaid=!!bd.paid;
+    const displayAmt=bd.actualAmt||b.amt;
+    const diff=bd.actualAmt?(bd.actualAmt-b.amt):0;
+    const nextDueStr=bd.nextDue||fmtDate(b.next);
+    const editId=`bedit-${b.id}`;
+
+    return `<div class="bill-wrap">
+      <div class="bill-main">
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="toggleBillDetail('${b.id}')">
+          <div class="rname">${b.name}</div>
+          <div class="rsub" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+            ${typeBadge(b.type)}
+            <span>Next due: <strong>${nextDueStr}</strong></span>
+            ${isPaid?`<span class="paid-chip">✓ Paid ${bd.paidDate||''} from ${bd.paidFrom||''}</span>`:''}
+            ${diff>0&&b.id!=='b20'&&b.id!=='b21'?`<span class="overage-chip">+${f2(diff)} from envelope</span>`:''}
+            ${diff>0&&(b.id==='b20'||b.id==='b21')?`<span class="overage-chip">+${f2(diff)} to LOC</span>`:''}
+            ${b.note?`<span style="font-size:10px;color:var(--text3)">${b.note}</span>`:''}
+          </div>
+        </div>
+        <div class="rright">
+          <span class="ramt">${f2(displayAmt)}</span>
+          <button class="pay-btn ${isPaid?'paid':''}" onclick="openPayBill('${b.id}')">${isPaid?'✓ Paid':'Pay'}</button>
+        </div>
+      </div>
+      <div class="bill-detail" id="${editId}">
+        <div class="bill-edit-grid">
+          <div><label>Next due date</label><input type="text" id="ndue-${b.id}" value="${nextDueStr}" placeholder="e.g. Jun 25"></div>
+          <div><label>Date paid</label><input type="text" id="pdate-${b.id}" value="${bd.paidDate||''}" placeholder="e.g. May 15"></div>
+        </div>
+        <div class="brow">
+          <button class="btn btn-gold btn-sm" onclick="saveBillDates('${b.id}')">Save dates</button>
+          <button class="btn btn-sm" onclick="openPayBill('${b.id}')">Log payment</button>
+          ${isPaid?`<button class="btn btn-red btn-sm" onclick="unpayBill('${b.id}')">Unmark paid</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleBillDetail(id){document.getElementById(`bedit-${id}`).classList.toggle('open');}
+
+async function saveBillDates(id){
+  if(!S.billData[id]) S.billData[id]={};
+  const ndue=document.getElementById(`ndue-${id}`).value.trim();
+  const pdate=document.getElementById(`pdate-${id}`).value.trim();
+  if(ndue) S.billData[id].nextDue=ndue;
+  if(pdate){S.billData[id].paidDate=pdate;}
+  document.getElementById(`bedit-${id}`).classList.remove('open');
+  await saveToDB('Dates saved ✓');
+  renderBills();
+}
+
+async function unpayBill(id){
+  if(!confirm('Unmark this bill as paid?'))return;
+  if(S.billData[id]){
+    S.billData[id].paid=false;
+    delete S.billData[id].paidDate;
+    delete S.billData[id].paidFrom;
+  }
+  await saveToDB('Bill unmarked');
+  renderBills();
+}
+
+// ═══════════════════ SINK FUNDS ═══════════════════
+function renderSinkFunds(){
+  const el=document.getElementById('sink-list');
+  if(!el) return;
+  if(!S.sinkFunds?.length){el.innerHTML='<p style="font-size:13px;color:var(--text3);margin-bottom:10px">No sink funds yet.</p>';return;}
+  el.innerHTML=S.sinkFunds.map(sf=>`
+    <div class="sink-card">
+      <div class="sink-header">
+        <div><div class="sink-name">${sf.name}</div><div class="sink-meta">+${f2(sf.perCycle)}/cycle · ${sf.notes||''}</div></div>
+        <div style="text-align:right"><div class="sink-bal">${f2(sf.balance||0)}</div><div class="sink-meta">saved up</div></div>
+      </div>
+      <div class="prog"><div class="pbar" style="width:${sf.targetAmt?Math.min(100,Math.round((sf.balance||0)/sf.targetAmt*100)):0}%;background:var(--green)"></div></div>
+      <div class="sink-actions">
+        <button class="btn btn-sm btn-green" onclick="openSinkSpend('${sf.id}')">Log spend</button>
+        <button class="btn btn-sm" onclick="addSinkCycle('${sf.id}')">+ Add cycle (${f2(sf.perCycle)})</button>
+        <button class="btn btn-sm" onclick="editSink('${sf.id}')">Edit</button>
+        <button class="btn btn-red btn-sm" onclick="deleteSink('${sf.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function openModal_sink(name){
+  document.getElementById('sink-title').textContent='Add sink fund';
+  ['sink-name','sink-per','sink-bal','sink-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sink-bal').value='0';
+  document.getElementById('sink-edit-id').value='';
+  openModal('sink');
+}
+
+function editSink(id){
+  const sf=S.sinkFunds.find(s=>s.id===id);
+  if(!sf) return;
+  document.getElementById('sink-title').textContent='Edit sink fund';
+  document.getElementById('sink-name').value=sf.name;
+  document.getElementById('sink-per').value=sf.perCycle;
+  document.getElementById('sink-bal').value=sf.balance||0;
+  document.getElementById('sink-notes').value=sf.notes||'';
+  document.getElementById('sink-edit-id').value=id;
+  openModal('sink');
+}
+
+async function saveSinkFund(){
+  const name=document.getElementById('sink-name').value.trim();
+  const perCycle=parseFloat(document.getElementById('sink-per').value)||0;
+  const balance=parseFloat(document.getElementById('sink-bal').value)||0;
+  const notes=document.getElementById('sink-notes').value.trim();
+  const editId=document.getElementById('sink-edit-id').value;
+  if(!name){toast('Enter a name');return;}
+  if(!S.sinkFunds) S.sinkFunds=[];
+  if(editId){
+    const idx=S.sinkFunds.findIndex(s=>s.id===editId);
+    if(idx>-1) S.sinkFunds[idx]={...S.sinkFunds[idx],name,perCycle,balance,notes,targetAmt:perCycle*8};
+  } else {
+    S.sinkFunds.push({id:'sf'+Date.now(),name,perCycle,balance,notes,targetAmt:perCycle*8});
+  }
+  closeModal('sink');
+  await saveToDB('Sink fund saved ✓');
+  renderSinkFunds();
+}
+
+async function deleteSink(id){
+  if(!confirm('Delete this sink fund?'))return;
+  S.sinkFunds=S.sinkFunds.filter(s=>s.id!==id);
+  await saveToDB('Deleted');
+  renderSinkFunds();
+}
+
+async function addSinkCycle(id){
+  const sf=S.sinkFunds.find(s=>s.id===id);
+  if(!sf)return;
+  sf.balance=(sf.balance||0)+sf.perCycle;
+  await saveToDB(`+${f2(sf.perCycle)} added to ${sf.name} ✓`);
+  renderSinkFunds();
+}
+
+function openSinkSpend(id){
+  const sf=S.sinkFunds.find(s=>s.id===id);
+  if(!sf)return;
+  document.getElementById('ss-title').textContent=`Spend from ${sf.name}`;
+  document.getElementById('ss-sub').textContent=`Saved up: ${f2(sf.balance||0)}`;
+  document.getElementById('ss-amt').value='';
+  document.getElementById('ss-note').value='';
+  document.getElementById('ss-id').value=id;
+  openModal('sink-spend');
+}
+
+async function saveSinkSpend(){
+  const id=document.getElementById('ss-id').value;
+  const amt=parseFloat(document.getElementById('ss-amt').value)||0;
+  if(amt<=0){toast('Enter an amount');return;}
+  const sf=S.sinkFunds.find(s=>s.id===id);
+  if(!sf)return;
+  sf.balance=Math.max(0,(sf.balance||0)-amt);
+  closeModal('sink-spend');
+  await saveToDB(`${f2(amt)} spent from ${sf.name} ✓`);
+  renderSinkFunds();
+}
+
+// ═══════════════════ LOC SIMULATOR ═══════════════════
+let locChart=null;
+function renderLoc(){
+  document.getElementById('loc-bal').textContent=fmt(S.loc);
+  document.getElementById('loc-int').textContent=f2(S.loc*LOC_RATE/12);
+  updateLocSim();
+  renderBills();
+  renderSinkFunds();
+}
+
+function updateLocSim(){
+  const extra=parseInt(document.getElementById('loc-sl').value);
+  document.getElementById('loc-sl-val').textContent=fmt(extra);
+  const NET=916;
+  const months=[],base=[],withE=[];
+  let bB=S.loc,bE=S.loc;
+  const now=new Date();
+  for(let i=0;i<=12;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+    months.push(d.toLocaleDateString('en-CA',{month:'short',year:'2-digit'}));
+    base.push(Math.round(bB)); withE.push(Math.round(Math.max(0,bE)));
+    bB+=NET+bB*LOC_RATE/12;
+    bE=Math.max(0,bE+NET-extra+bE*LOC_RATE/12);
+  }
+  document.getElementById('sim-1yr').textContent=fmt(withE[12]);
+  const mtp=extra>NET?Math.ceil(S.loc/(extra-NET)):9999;
+  document.getElementById('sim-pay').textContent=mtp<9999?(mtp/12).toFixed(1)+' yrs':'n/a';
+  if(locChart) locChart.destroy();
+  locChart=new Chart(document.getElementById('loc-chart'),{
+    type:'line',
+    data:{labels:months,datasets:[
+      {data:base,borderColor:'#B02A2A',borderWidth:1.5,borderDash:[5,3],pointRadius:0,fill:false},
+      {data:withE,borderColor:'#1A6B3C',borderWidth:2,pointRadius:0,backgroundColor:'rgba(26,107,60,.07)',fill:true}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+f2(c.parsed.y)}}},
+      scales:{
+        x:{grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#7A7874',font:{size:10},maxRotation:45}},
+        y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#7A7874',font:{size:10},callback:v=>'$'+Math.round(v/1000)+'k'},min:Math.max(0,Math.min(...withE)-2000),max:Math.max(...base)+1000}
+      }
+    }
+  });
+}
+
+// ═══════════════════ HISTORY & TRANSACTIONS ═══════════════════
+let activeHistTab='txn';
+function showHistTab(tab,el){
+  activeHistTab=tab;
+  ['txn','cycles','charts'].forEach(t=>document.getElementById('hist-'+t).style.display=t===tab?'block':'none');
+  document.querySelectorAll('#panel-history .ftab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(tab==='charts') renderHistCharts();
+}
+
+function renderTxnList(){
+  const el=document.getElementById('txn-list');
+  if(!txnHistory.length){el.innerHTML='<p style="font-size:13px;color:var(--text3);padding:8px 0">No transactions yet. Pay a bill to see your transaction log.</p>';return;}
+  el.innerHTML=txnHistory.map(t=>`
+    <div class="txn">
+      <div>
+        <div class="txn-desc">${t.description}</div>
+        <div class="txn-sub">${t.date_display||''} · From: ${t.account||''} ${t.note?'· '+t.note:''}</div>
+      </div>
+      <div class="txn-amt ${t.type==='debit'?'debit':'credit'}">${t.type==='debit'?'-':'+'} ${f2(t.amount)}</div>
+    </div>`).join('');
+}
+
+function renderCycleList(){
+  const el=document.getElementById('cycle-list');
+  if(!cycleHistory.length){el.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:20px 0">No cycle history yet.</p>';return;}
+  el.innerHTML=cycleHistory.map((c,i)=>{
+    const surplus=c.envelope_budget-c.envelope_spent;
+    return `<div class="hist-cycle">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="document.getElementById('hcb${i}').classList.toggle('open')">
+        <div><div style="font-size:14px;font-weight:600">Cycle: ${c.cycle_start}</div>
+        <div style="font-size:12px;color:var(--text2)">Envelope: ${f2(c.envelope_spent)} / ${f2(c.envelope_budget)} · LOC: ${fmt(c.loc_balance)}</div></div>
+        <span class="mval ${surplus>=0?'g':'r'}" style="font-size:15px">${surplus>=0?'+':'-'}${f2(Math.abs(surplus))}</span>
+      </div>
+      <div class="hist-body" id="hcb${i}">
+        ${Object.entries(ENV_CATS).map(([k,cat])=>`<div class="row"><span>${cat.emoji} ${cat.label}</span><span class="ramt">${f2(c[k+'_spent']||0)}</span></div>`).join('')}
+        <div class="trow"><span>Total spent</span><span>${f2(c.envelope_spent)}</span></div>
+        <div style="margin-top:7px;font-size:12px;color:var(--text3)">Bank: ${f2(c.bank_balance)} · CC: ${f2(c.cc_balance)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderHistCharts(){
+  if(!cycleHistory.length) return;
+  const cycles=[...cycleHistory].reverse();
+  const labels=cycles.map(c=>c.cycle_start.slice(5));
+  const locVals=cycles.map(c=>c.loc_balance);
+
+  if(histCharts.loc) histCharts.loc.destroy();
+  histCharts.loc=new Chart(document.getElementById('hist-loc-chart'),{
+    type:'line',
+    data:{labels,datasets:[{data:locVals,borderColor:'#B02A2A',backgroundColor:'rgba(176,42,42,.07)',fill:true,borderWidth:2,pointRadius:3,tension:.3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+f2(c.parsed.y)}}},
+      scales:{x:{grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#7A7874',font:{size:10}}},y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#7A7874',font:{size:10},callback:v=>'$'+Math.round(v/1000)+'k'}}}}
+  });
+
+  if(histCharts.env) histCharts.env.destroy();
+  const catColors={food:'#1A6B3C',gas:'#1A4A8A',pets:'#9B6F1E',kids:'#6D28D9',misc:'#9B4A10'};
+  histCharts.env=new Chart(document.getElementById('hist-env-chart'),{
+    type:'bar',
+    data:{labels,datasets:Object.entries(ENV_CATS).map(([k,cat])=>({label:cat.label,data:cycles.map(c=>c[k+'_spent']||0),backgroundColor:catColors[k]+'CC',borderRadius:3}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{font:{size:10},color:'#4A4845',boxWidth:10}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#7A7874',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#7A7874',font:{size:10},callback:v=>'$'+v}}}}
+  });
+}
+
+function renderHistory(){
+  renderTxnList();
+  renderCycleList();
+}
+
+// ═══════════════════ AI ASSISTANT ═══════════════════
+function buildContext(){
+  const spent=Object.values(S.envSpent).reduce((a,b)=>a+b,0);
+  const effEnv=getEffEnv();
+  const jNext=nextPay(JACLYN_BASE), sNext=nextPay(SHAWN_BASE);
+  const urgent=[...BILLS].map(b=>({...b,days:daysUntil(nextOcc(b.day))})).filter(b=>b.days<=7&&!S.billData[b.id]?.paid).sort((a,b)=>a.days-b.days);
+  const recentCycles=cycleHistory.slice(0,3);
+  const histNote=recentCycles.length?`Recent cycles: ${recentCycles.map(c=>`${c.cycle_start} spent ${f2(c.envelope_spent)}/${f2(c.envelope_budget)}`).join(', ')}`:'No cycle history yet.';
+
+  return `You are a warm, practical family finance assistant. Be specific with numbers, keep answers concise.
+
+CURRENT STATE:
+- Bank: ${f2(S.bank)} | LOC (4.65%): ${fmt(S.loc)} | CC: ${f2(S.cc)} (paid in full biweekly — no interest)
+- LOC monthly interest: ${f2(S.loc*LOC_RATE/12)} | LOC = ~$36k Shawn car + ~$16k basketball school
+
+ENVELOPE — $1,075.81/cycle:
+- Effective budget: ${f2(effEnv)} | Spent: ${f2(spent)} | Remaining: ${f2(Math.max(0,effEnv-spent))}
+- Food $800 + Shawn gas $50 + Pets $65.73 + Surplus $160.08
+- Water & Property Tax go to LOC — NOT from envelope
+- Presto $400/mo is fixed — not in envelope
+
+PAY: Jaclyn $2,629.32 biweekly (next ${fmtDate(jNext)}) | Shawn $2,649.31 (next ${fmtDate(sNext)})
+MONTHLY: Income $10,557.26 | Expenses $10,237.09 | Surplus $320.17
+
+BILLS DUE SOON (unpaid): ${urgent.length?urgent.map(b=>`${b.name} ${f2(b.amt)} in ${b.days}d`).join(', '):'None'}
+HISTORY: ${histNote}
+SINK FUNDS: ${(S.sinkFunds||[]).map(sf=>`${sf.name}: ${f2(sf.balance||0)} saved`).join(', ')||'None'}`;
+}
+
+let chatHistory=[];
+async function sendChat(){
+  const input=document.getElementById('chat-input');
+  const msg=input.value.trim();
+  if(!msg)return;
+  input.value='';
+  addMsg(msg,'user');
+  chatHistory.push({role:'user',content:msg});
+  const thinking=addMsg('Thinking…','ai msg-thinking');
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:buildContext(),messages:chatHistory.slice(-10)})});
+    const data=await r.json();
+    const text=data.content?.map(c=>c.text||'').join('')||'Sorry, something went wrong.';
+    thinking.remove(); addMsg(text,'ai');
+    chatHistory.push({role:'assistant',content:text});
+  } catch(e){thinking.remove();addMsg('Connection error — need internet for the assistant.','ai');}
+}
+function addMsg(text,cls){const wrap=document.getElementById('chat-wrap');const div=document.createElement('div');div.className='msg msg-'+cls;div.textContent=text;wrap.appendChild(div);wrap.scrollTop=wrap.scrollHeight;return div;}
+function askQ(el){document.getElementById('chat-input').value=el.textContent;sendChat();}
+
+// ═══════════════════ NAV ═══════════════════
+function showPanel(name,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  if(el) el.classList.add('active');
+  if(name==='loc') renderLoc();
+  if(name==='checklist') renderChecklist();
+  if(name==='envelope') renderEnvelope();
+  if(name==='history'){renderHistory();}
+}
+
+function renderAll(){renderOverview();renderChecklist();renderEnvelope();renderBills();renderSinkFunds();}
+
+// ═══════════════════ INIT ═══════════════════
+// Make sink fund add button work
+document.querySelector('[onclick="openModal(\'sink\')"]').onclick=()=>{
+  document.getElementById('sink-title').textContent='Add sink fund';
+  ['sink-name','sink-per','sink-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sink-bal').value='0';
+  document.getElementById('sink-edit-id').value='';
+  openModal('sink');
+};
+
+initDB();
+</script>
+</body>
+</html>
