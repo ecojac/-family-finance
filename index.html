@@ -293,11 +293,18 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-wei
       <input type="number" id="pb-amount" inputmode="decimal" oninput="previewBillDiff()">
     </div>
     <div id="pb-diff" style="display:none;margin-bottom:12px"></div>
-    <label style="margin-bottom:10px;display:block">Paid from</label>
+    <label style="margin-bottom:10px;display:block">Paid from — where did the money come from?</label>
     <div class="source-btns">
-      <div class="src-btn" id="src-bank" onclick="selectSource('bank')">🏦 Bank</div>
-      <div class="src-btn" id="src-loc" onclick="selectSource('loc')">📋 LOC</div>
-      <div class="src-btn" id="src-cc" onclick="selectSource('cc')">💳 CC</div>
+      <div class="src-btn" id="src-bank" onclick="selectSource('bank')">🏦 Bank<div style="font-size:10px;margin-top:2px;opacity:.7">balance ↓</div></div>
+      <div class="src-btn" id="src-loc" onclick="selectSource('loc')">📋 LOC<div style="font-size:10px;margin-top:2px;opacity:.7">LOC balance ↑</div></div>
+      <div class="src-btn" id="src-cc" onclick="selectSource('cc')">💳 CC<div style="font-size:10px;margin-top:2px;opacity:.7">CC balance ↑</div></div>
+    </div>
+    <div id="paydown-options" style="display:none;margin-bottom:14px">
+      <div class="ins b" style="font-size:12px">💡 Paying down the LOC or CC from your bank? Use these instead — both balances will decrease:</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div class="src-btn" id="src-paydown-loc" onclick="selectSource('paydown-loc')">Bank → LOC<div style="font-size:10px;margin-top:2px;opacity:.7">Both ↓</div></div>
+        <div class="src-btn" id="src-paydown-cc" onclick="selectSource('paydown-cc')">Bank → CC<div style="font-size:10px;margin-top:2px;opacity:.7">Both ↓</div></div>
+      </div>
     </div>
     <div style="margin-bottom:14px">
       <label>Date paid</label>
@@ -709,8 +716,16 @@ function getBillOverages(){
 function getEffEnv(){return S.envelope - getBillOverages();}
 
 // ═══════════════════ MODALS ═══════════════════
-function openModal(name){document.getElementById('modal-'+name).classList.add('open');}
-function closeModal(name){document.getElementById('modal-'+name).classList.remove('open');}
+function openModal(name){
+  const m=document.getElementById('modal-'+name);
+  m.style.display='flex';
+  m.classList.add('open');
+}
+function closeModal(name){
+  const m=document.getElementById('modal-'+name);
+  m.classList.remove('open');
+  m.style.display='';
+}
 
 function openSettings(){
   document.getElementById('bv-bank').textContent=f2(S.bank);
@@ -741,28 +756,35 @@ async function saveBal(key){
 // ═══════════════════ BILL PAYMENT ═══════════════════
 function openPayBill(billId){
   const bill=BILLS.find(b=>b.id===billId);
-  if(!bill) return;
+  if(!bill){toast('Bill not found');return;}
   currentPayBillId=billId;
   selectedPaySource=null;
   document.getElementById('pb-title').textContent='Pay — '+bill.name;
-  document.getElementById('pb-sub').textContent=`Budgeted: ${f2(bill.amt)}`;
-  document.getElementById('pb-amount').value=bill.amt;
+  document.getElementById('pb-sub').textContent=`Budgeted: ${f2(bill.amt)} · Select where this is paid from`;
+  document.getElementById('pb-amount').value=bill.amt.toFixed(2);
   document.getElementById('pb-diff').style.display='none';
   document.getElementById('pb-date').value=fmtDate(new Date());
-  // Auto-suggest next due
-  const next=nextOcc(bill.day);
+  const next=new Date(nextOcc(bill.day));
   next.setMonth(next.getMonth()+1);
   document.getElementById('pb-nextdue').value=fmtDate(next);
   // Pre-select source based on bill type
   ['bank','loc','cc'].forEach(s=>document.getElementById('src-'+s).classList.remove('selected'));
-  const autoSrc = bill.type==='bank'?'bank':bill.type==='loc'?'bank':bill.type==='cc'?'bank':'bank';
-  selectSource(autoSrc);
-  openModal('paybill');
+  selectSource(bill.type==='bank'?'bank':'bank');
+  // Force modal open
+  const modal=document.getElementById('modal-paybill');
+  modal.style.display='flex';
+  modal.classList.add('open');
 }
 
 function selectSource(src){
   selectedPaySource=src;
-  ['bank','loc','cc'].forEach(s=>document.getElementById('src-'+s).classList.toggle('selected',s===src));
+  ['bank','loc','cc','paydown-loc','paydown-cc'].forEach(s=>{
+    const el=document.getElementById('src-'+s);
+    if(el) el.classList.toggle('selected',s===src);
+  });
+  // Show paydown options when bank is selected
+  const pdEl=document.getElementById('paydown-options');
+  if(pdEl) pdEl.style.display=(src==='bank'||src==='paydown-loc'||src==='paydown-cc')?'block':'none';
 }
 
 function previewBillDiff(){
@@ -799,10 +821,25 @@ async function confirmPayBill(){
   if(!S.billData[currentPayBillId]) S.billData[currentPayBillId]={};
   S.billData[currentPayBillId] = {paid:true, paidDate, nextDue, actualAmt:actual, paidFrom:selectedPaySource};
 
-  // Deduct from source account
-  if(selectedPaySource==='bank') S.bank = Math.max(0, S.bank - actual);
-  else if(selectedPaySource==='loc') S.loc = S.loc + actual; // paying from LOC increases LOC balance
-  else if(selectedPaySource==='cc') S.cc = Math.max(0, S.cc - actual);
+  // Update balances correctly
+  if(selectedPaySource==='bank'){
+    // Paying from bank — bank balance decreases
+    S.bank = Math.max(0, S.bank - actual);
+  } else if(selectedPaySource==='loc'){
+    // Paying from LOC — LOC balance increases (borrowing more)
+    S.loc = S.loc + actual;
+  } else if(selectedPaySource==='cc'){
+    // Paying from CC — CC balance increases (owing more)
+    S.cc = S.cc + actual;
+  } else if(selectedPaySource==='paydown-loc'){
+    // Paying LOC FROM bank — both decrease
+    S.bank = Math.max(0, S.bank - actual);
+    S.loc = Math.max(0, S.loc - actual);
+  } else if(selectedPaySource==='paydown-cc'){
+    // Paying CC FROM bank — both decrease
+    S.bank = Math.max(0, S.bank - actual);
+    S.cc = Math.max(0, S.cc - actual);
+  }
 
   // Log transaction
   await logTransaction(`${bill.name}`, actual, 'debit', selectedPaySource, `Paid ${paidDate}`);
