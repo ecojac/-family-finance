@@ -423,6 +423,10 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-wei
     <div class="ctitle">This cycle's log</div>
     <div id="log-list"></div>
   </div>
+  <div class="ins w" style="margin-top:4px">⚠️ Reset only clears spending log. Balances, bill dates and history are never affected.</div>
+  <div class="brow">
+    <button class="btn btn-red btn-sm" onclick="manualResetEnvelope()">New cycle — reset envelope</button>
+  </div>
 </div>
 
 <!-- LOC & BILLS -->
@@ -559,34 +563,44 @@ const DEFAULT_ENV = 1010.09;
 // Bills that NEVER reduce envelope even if over budget
 const LOC_BUFFER_BILLS = ['b20','b21']; // Property Tax, Water
 
-// Bills — complete list
+// Bills — complete list with CORRECT amounts
+// Monthly bills = paid once per month (full amount)
+// Every-pay bills = paid each biweekly cycle
 const BILLS = [
-  // Monthly/fixed — sorted by day of month
+  // 1st of month
   {id:'b01',name:'Unicef',                    amt:25,      day:1,  type:'cc',   freq:'monthly'},
   {id:'b02',name:'Abilities Centre',          amt:142.38,  day:1,  type:'cc',   freq:'monthly'},
-  {id:'b03',name:'Jaclyn car payment',        amt:672.08,  day:1,  type:'bank', freq:'monthly', note:'Auto-debit'},
-  {id:'b04',name:'Presto transit',            amt:400,     day:1,  type:'cc',   freq:'monthly', note:'Fixed — not from envelope'},
+  {id:'b03',name:'Jaclyn car payment',        amt:336.04,  day:1,  type:'bank', freq:'every-pay', note:'Every pay — auto-debit $336.04'},
+  {id:'b04',name:'Presto transit',            amt:200,     day:1,  type:'cc',   freq:'every-pay', note:'Every pay — fixed, not from envelope'},
+  // 5th
   {id:'b05',name:'407 ETR',                   amt:125,     day:5,  type:'cc',   freq:'monthly'},
   {id:'b06',name:'Enbridge gas → LOC',        amt:125,     day:5,  type:'loc',  freq:'monthly'},
+  // 14th
   {id:'b07',name:'Telus Internet',            amt:89.27,   day:14, type:'cc',   freq:'monthly'},
+  // 15th
   {id:'b08',name:'Jaclyn Life Insurance',     amt:34.74,   day:15, type:'bank', freq:'monthly'},
   {id:'b09',name:'Reliance water heater',     amt:100,     day:15, type:'cc',   freq:'monthly'},
   {id:'b10',name:'Feed the Need',             amt:31.40,   day:15, type:'cc',   freq:'monthly'},
-  {id:'b11',name:'Shawn Car → LOC',           amt:580,     day:15, type:'bank', freq:'monthly', note:'Reduces LOC balance'},
-  {id:'b12',name:'TD Transfer → LOC',         amt:110,     day:15, type:'bank', freq:'monthly', note:'Goes toward LOC interest'},
+  {id:'b11',name:'Shawn Car → LOC',           amt:580,     day:15, type:'bank', freq:'monthly', note:'Monthly — reduces LOC balance'},
+  {id:'b12',name:'TD Transfer → LOC',         amt:110,     day:15, type:'bank', freq:'monthly', note:'Monthly — covers LOC interest'},
+  // 16th
   {id:'b13',name:'Mortgage',                  amt:3600,    day:16, type:'bank', freq:'monthly'},
+  // 19th
   {id:'b14',name:'House Insurance',           amt:151.23,  day:19, type:'bank', freq:'monthly'},
   {id:'b15',name:'Car Insurance',             amt:390,     day:19, type:'bank', freq:'monthly'},
+  // 21st
   {id:'b16',name:'Rogers Cell Phones',        amt:107.79,  day:21, type:'cc',   freq:'monthly'},
+  // 23rd/24th/25th
   {id:'b17',name:'Apple subscription',        amt:16.94,   day:23, type:'cc',   freq:'monthly'},
   {id:'b18',name:'Apple iCloud',              amt:5.00,    day:24, type:'cc',   freq:'monthly'},
   {id:'b19',name:'Toyota subscription',       amt:11.24,   day:25, type:'cc',   freq:'monthly'},
   {id:'b20',name:'Oshawa Power → LOC',        amt:145.61,  day:25, type:'loc',  freq:'monthly'},
+  // 30th
   {id:'b21',name:'Jaclyn & Chase Equitable',  amt:432.94,  day:30, type:'bank', freq:'monthly'},
   {id:'b22',name:'Property Tax → LOC',        amt:650,     day:30, type:'loc',  freq:'monthly', note:'Accumulates in LOC — not from envelope'},
   {id:'b23',name:'Water → LOC',               amt:160,     day:30, type:'loc',  freq:'monthly', note:'Accumulates in LOC — not from envelope'},
   // Quarterly
-  {id:'b24',name:'Property Tax actual bill',  amt:1928,    day:1,  type:'loc',  freq:'quarterly', note:'Paid from LOC when due'},
+  {id:'b24',name:'Property Tax actual bill',  amt:1928,    day:1,  type:'loc',  freq:'quarterly', note:'Paid from LOC when due every 3 months'},
   // Every pay
   {id:'b25',name:'Credit card payoff',        amt:0,       day:0,  type:'bank', freq:'every-pay', note:'Pay full CC balance every pay day'},
 ];
@@ -1038,6 +1052,13 @@ async function logSpend(){
   document.getElementById('log-note').value='';
   await saveToDB(`Logged ${f2(amt)} ✓`);
   renderEnvelope(); renderOverview();
+}
+
+async function manualResetEnvelope(){
+  if(!confirm('Reset envelope for new cycle?\n\nOnly spending log clears. Balances, bill dates, sink funds and history are NOT affected.')) return;
+  const today=new Date().toISOString().split('T')[0];
+  await doPaydayReset(today);
+  toast('Envelope reset ✓');
 }
 
 async function delLog(idx){
