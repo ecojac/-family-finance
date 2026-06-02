@@ -362,6 +362,8 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-wei
   </div>
   <div class="brow" style="margin-bottom:14px">
     <button class="btn btn-green btn-sm" onclick="openModal('credit')">+ Add money to bank</button>
+    <button class="btn btn-blue btn-sm" onclick="openQuickPayCC()">Pay CC balance</button>
+    <button class="btn btn-sm" onclick="openQuickPayLOC()">Pay down LOC</button>
   </div>
   <div class="card">
     <div class="ctitle">Next pay days</div>
@@ -830,6 +832,36 @@ async function saveBal(key){
   await logTxn(`${label} balance override`,Math.abs(val-old),val>old?'credit':'debit',key,`Manually corrected from ${key==='env'?f2(old):fmt(old)} to ${key==='env'?f2(val):fmt(val)}`);
   await saveToDB(`${label} updated ✓`);
   renderAll();
+}
+
+function openQuickPayCC(){
+  currentBillId='b25';
+  selectedSrc=null;
+  document.getElementById('pb-title').textContent='Pay credit card in full';
+  document.getElementById('pb-sub').textContent=`Current CC balance: ${f2(S.cc)} · Reduces both bank and CC balance`;
+  document.getElementById('pb-amount').value=S.cc.toFixed(2);
+  document.getElementById('pb-diff').style.display='none';
+  document.getElementById('pb-date').value=fmtDate(new Date());
+  document.getElementById('pb-nextdue').value='';
+  document.getElementById('pb-id').value='b25';
+  ['bank','loc','cc','bank-loc','bank-cc'].forEach(s=>{const el=document.getElementById('src-'+s);if(el)el.classList.remove('selected');});
+  selectSrc('bank-cc');
+  openModal('paybill');
+}
+
+function openQuickPayLOC(){
+  currentBillId='b_loc_extra';
+  selectedSrc=null;
+  document.getElementById('pb-title').textContent='Make LOC payment';
+  document.getElementById('pb-sub').textContent=`LOC balance: ${fmt(S.loc)} · Enter amount paying from bank — reduces both balances`;
+  document.getElementById('pb-amount').value='';
+  document.getElementById('pb-diff').style.display='none';
+  document.getElementById('pb-date').value=fmtDate(new Date());
+  document.getElementById('pb-nextdue').value='';
+  document.getElementById('pb-id').value='b_loc_extra';
+  ['bank','loc','cc','bank-loc','bank-cc'].forEach(s=>{const el=document.getElementById('src-'+s);if(el)el.classList.remove('selected');});
+  selectSrc('bank-loc');
+  openModal('paybill');
 }
 
 // ═══════════ CREDIT (add money to bank) ═══════════
