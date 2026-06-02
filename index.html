@@ -925,38 +925,41 @@ function previewDiff(){
 }
 
 async function confirmPay(){
-  const bill=BILLS.find(b=>b.id===currentBillId);
-  if(!bill){toast('Error');return;}
   if(!selectedSrc){toast('Please choose where this is paid from');return;}
-  const actual=parseFloat(document.getElementById('pb-amount').value)||bill.amt||0;
+  const actual=parseFloat(document.getElementById('pb-amount').value)||0;
+  if(actual<=0){toast('Enter an amount');return;}
   const paidDate=document.getElementById('pb-date').value||fmtDate(new Date());
   const nextDue=document.getElementById('pb-nextdue').value;
+  const billId=document.getElementById('pb-id').value;
 
-  // Update bill record
-  if(!S.billData[currentBillId]) S.billData[currentBillId]={};
-  S.billData[currentBillId]={paid:true, paidDate, nextDue, actualAmt:actual, paidFrom:selectedSrc};
+  // Only update billData for real bills in the BILLS array
+  const bill=BILLS.find(b=>b.id===billId);
+  if(bill){
+    if(!S.billData[billId]) S.billData[billId]={};
+    S.billData[billId]={paid:true, paidDate, nextDue, actualAmt:actual, paidFrom:selectedSrc};
+  }
 
-  // Update balances
+  // Update balances based on source
   if(selectedSrc==='bank'){
     S.bank=Math.max(0,S.bank-actual);
   } else if(selectedSrc==='loc'){
-    S.loc=S.loc+actual; // borrowing from LOC — LOC balance increases
+    S.loc=S.loc+actual;
   } else if(selectedSrc==='cc'){
-    S.cc=S.cc+actual;   // charging to CC — CC balance increases
+    S.cc=S.cc+actual;
   } else if(selectedSrc==='bank-loc'){
     S.bank=Math.max(0,S.bank-actual);
-    S.loc=Math.max(0,S.loc-actual);  // paying DOWN the LOC — both decrease
+    S.loc=Math.max(0,S.loc-actual);
   } else if(selectedSrc==='bank-cc'){
     S.bank=Math.max(0,S.bank-actual);
-    S.cc=Math.max(0,S.cc-actual);    // paying OFF the CC — both decrease
+    S.cc=Math.max(0,S.cc-actual);
   }
 
-  // Log transaction
+  const desc=bill?bill.name:selectedSrc==='bank-cc'?'Credit card payoff':'LOC payment';
   const accountLabel=selectedSrc==='bank-loc'?'Bank→LOC paydown':selectedSrc==='bank-cc'?'Bank→CC payoff':selectedSrc;
-  await logTxn(bill.name, actual, 'debit', accountLabel, `Paid ${paidDate}`);
+  await logTxn(desc, actual, 'debit', accountLabel, `Paid ${paidDate}`);
 
   closeModal('paybill');
-  await saveToDB(`${bill.name} paid ✓`);
+  await saveToDB(`${desc} paid ✓`);
   renderAll();
 }
 
