@@ -360,6 +360,26 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-wei
     <div class="met"><div class="mlabel">CC balance</div><div class="mval gold" id="ov-cc">—</div></div>
     <div class="met"><div class="mlabel">Envelope left</div><div class="mval" id="ov-env">—</div></div>
   </div>
+
+  <!-- CASH REMAINING CARD -->
+  <div class="card" id="cash-remaining-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div>
+        <div class="ctitle" style="margin-bottom:2px">Cash remaining</div>
+        <div style="font-size:11px;color:var(--text3)">Bank minus upcoming bills & reserved sink funds</div>
+      </div>
+      <div class="mval g" id="cr-amount" style="font-size:28px">—</div>
+    </div>
+    <div class="prog" style="margin:10px 0 8px"><div class="pbar" id="cr-bar" style="width:0%;background:var(--green)"></div></div>
+    <button class="btn btn-sm" style="font-size:11px;padding:5px 12px" onclick="toggleCashBreakdown()">Show breakdown ▾</button>
+    <div id="cr-breakdown" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div class="row" style="padding:6px 0"><span style="color:var(--text2)">Current bank balance</span><span class="ramt g" id="cr-bank">—</span></div>
+      <div id="cr-bills-list"></div>
+      <div id="cr-sink-list"></div>
+      <div class="trow" style="margin-top:4px"><span>Cash remaining</span><span class="ramt g" id="cr-total">—</span></div>
+    </div>
+  </div>
+
   <div class="brow" style="margin-bottom:14px">
     <button class="btn btn-green btn-sm" onclick="openModal('credit')">+ Add money to bank</button>
     <button class="btn btn-blue btn-sm" onclick="openQuickPayCC()">Pay CC balance</button>
@@ -472,6 +492,7 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-wei
     <button class="ftab" onclick="filterBills('loc',this)">LOC</button>
     <button class="ftab" onclick="filterBills('paid',this)">Paid ✓</button>
     <button class="ftab" onclick="filterBills('unpaid',this)">Unpaid</button>
+    <button class="ftab" onclick="filterBills('paused',this)">Paused</button>
   </div>
   <div class="card" style="padding:11px 17px"><div id="bills-list"></div></div>
   <hr class="divider">
@@ -791,19 +812,18 @@ function fmtDate(d){return d.toLocaleDateString('en-CA',{month:'short',day:'nume
 function daysBadge(n){if(n<=0)return'<span class="badge b-due">Due now</span>';if(n<=7)return'<span class="badge b-soon">'+n+'d</span>';return'<span class="badge b-ok">'+n+'d</span>';}
 function typeBadge(t){if(t==='loc')return'<span class="badge b-loc">LOC</span>';if(t==='cc')return'<span class="badge b-cc">CC</span>';if(t==='bank-loc')return'<span class="badge b-bank">Bank→LOC</span>';return'<span class="badge b-bank">Bank</span>';}
 
-function getBillOverages(){
+function getBillVariance(){
+  // Returns net variance — positive = overages reduce envelope, negative = underages add to envelope
   return Object.entries(S.billData).reduce((sum,[id,d])=>{
-    // Skip non-bill entries (CC payoff, LOC payments etc)
-    if(!id.startsWith('b') || isNaN(id.slice(1))) return sum;
-    // Water and Property Tax never reduce envelope
-    if(LOC_BUFFER_BILLS.includes(id)) return sum;
+    if(!id.startsWith('b')||isNaN(id.slice(1))) return sum;
+    if(LOC_BUFFER_BILLS.includes(id)) return sum; // Water & prop tax exempt both ways
     const bill=BILLS.find(b=>b.id===id);
     if(!bill||!d.actualAmt||!bill.amt) return sum;
-    const diff=d.actualAmt-bill.amt;
-    return diff>0?sum+diff:sum;
+    const diff=d.actualAmt-bill.amt; // positive=overage, negative=underage
+    return sum+diff; // overages reduce envelope, underages add back
   },0);
 }
-function getEffEnv(){return S.envelope-getBillOverages();}
+function getEffEnv(){return Math.max(0, S.envelope - getBillVariance());}
 
 // ═══════════ MODALS ═══════════
 function openModal(name){const m=document.getElementById('modal-'+name);m.style.display='flex';m.classList.add('open');}
@@ -986,17 +1006,121 @@ async function confirmPay(){
   renderAll();
 }
 
+async function pauseBill(id){
+  if(!S.billData[id]) S.billData[id]={};
+  S.billData[id].paused=true;
+  S.billData[id].resumeDate='';
+  toggleBillDetail(id);
+  await saveToDB('Bill paused ✓');
+  renderBills(); renderOverview();
+}
+
+async function unpauseBill(id){
+  if(S.billData[id]) S.billData[id].paused=false;
+  await saveToDB('Bill resumed ✓');
+  renderBills(); renderOverview();
+}
+
+function checkAutoResume(){
+  // Check if any paused bills have a resume date that has passed
+  const today=new Date(); today.setHours(0,0,0,0);
+  let changed=false;
+  Object.entries(S.billData).forEach(([id,d])=>{
+    if(d.paused&&d.resumeDate){
+      const resumeDate=new Date(d.resumeDate+' 2026');
+      if(!isNaN(resumeDate)&&resumeDate<=today){
+        d.paused=false;
+        changed=true;
+        toast(`${BILLS.find(b=>b.id===id)?.name||'Bill'} has been resumed`);
+      }
+    }
+  });
+  if(changed) saveToDB();
+}
+
+// ═══════════ CASH REMAINING ═══════════
+function calcCashRemaining(){
+  const nextPay=getNextShawnPay();
+  const today=new Date(); today.setHours(0,0,0,0);
+
+  // Unpaid bank bills due before next Shawn pay day
+  const upcomingBankBills=BILLS.filter(b=>{
+    if(b.type!=='bank'&&b.type!=='bank-loc') return false;
+    if(S.billData[b.id]?.paid) return false; // already paid — money already gone
+    if(S.billData[b.id]?.paused) return false; // paused — skip
+    if(b.freq==='every-pay') return true; // always due this cycle
+    if(!b.day) return false;
+    const due=nextOcc(b.day);
+    return due<=nextPay; // due before or on next pay day
+  });
+
+  const billTotal=upcomingBankBills.reduce((s,b)=>s+(S.billData[b.id]?.actualAmt||b.amt),0);
+  const sinkTotal=(S.sinkFunds||[]).reduce((s,sf)=>s+(sf.balance||0),0);
+  const remaining=S.bank-billTotal-sinkTotal;
+
+  return {remaining, billTotal, sinkTotal, upcomingBankBills};
+}
+
+function renderCashRemaining(){
+  const {remaining,billTotal,sinkTotal,upcomingBankBills}=calcCashRemaining();
+  const amtEl=document.getElementById('cr-amount');
+  if(!amtEl) return;
+  amtEl.textContent=f2(remaining);
+  amtEl.className='mval '+(remaining>500?'g':remaining>0?'gold':'r');
+
+  // Progress bar — how much of bank is truly free
+  const pct=S.bank>0?Math.max(0,Math.min(100,Math.round(remaining/S.bank*100))):0;
+  const bar=document.getElementById('cr-bar');
+  if(bar){bar.style.width=pct+'%';bar.style.background=pct>30?'var(--green)':pct>10?'var(--orange)':'var(--red)';}
+
+  // Breakdown
+  document.getElementById('cr-bank').textContent=f2(S.bank);
+
+  const billsHTML=upcomingBankBills.map(b=>`
+    <div class="row" style="padding:6px 0">
+      <span style="color:var(--text2);font-size:13px">${b.name}</span>
+      <span style="color:var(--red);font-weight:600;font-size:13px">−${f2(S.billData[b.id]?.actualAmt||b.amt)}</span>
+    </div>`).join('');
+  document.getElementById('cr-bills-list').innerHTML=
+    `<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:8px 0 4px;font-weight:600">Unpaid bank bills this cycle</div>`+
+    (billsHTML||'<div style="font-size:13px;color:var(--text3);padding:4px 0">No unpaid bank bills</div>')+
+    `<div class="row" style="padding:6px 0;font-weight:600"><span>Bills subtotal</span><span style="color:var(--red)">−${f2(billTotal)}</span></div>`;
+
+  const sinksHTML=(S.sinkFunds||[]).filter(sf=>sf.balance>0).map(sf=>`
+    <div class="row" style="padding:6px 0">
+      <span style="color:var(--text2);font-size:13px">${sf.name} (reserved)</span>
+      <span style="color:var(--orange);font-weight:600;font-size:13px">−${f2(sf.balance)}</span>
+    </div>`).join('');
+  document.getElementById('cr-sink-list').innerHTML=
+    `<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:8px 0 4px;font-weight:600">Sink funds reserved</div>`+
+    (sinksHTML||'<div style="font-size:13px;color:var(--text3);padding:4px 0">No sink fund balances</div>')+
+    `<div class="row" style="padding:6px 0;font-weight:600"><span>Sink funds subtotal</span><span style="color:var(--orange)">−${f2(sinkTotal)}</span></div>`;
+
+  document.getElementById('cr-total').textContent=f2(remaining);
+  document.getElementById('cr-total').style.color=remaining>0?'var(--green)':'var(--red)';
+}
+
+let cashBreakdownOpen=false;
+function toggleCashBreakdown(){
+  cashBreakdownOpen=!cashBreakdownOpen;
+  const el=document.getElementById('cr-breakdown');
+  const btn=el.previousElementSibling;
+  el.style.display=cashBreakdownOpen?'block':'none';
+  btn.textContent=cashBreakdownOpen?'Hide breakdown ▴':'Show breakdown ▾';
+  if(cashBreakdownOpen) renderCashRemaining();
+}
+
 async function unpayBill(id){
   if(!confirm('Unmark this bill as paid?'))return;
   if(S.billData[id]){S.billData[id].paid=false;delete S.billData[id].paidDate;delete S.billData[id].paidFrom;}
   await saveToDB('Bill unmarked');
-  renderBills();
+  renderBills(); renderCashRemaining();
 }
 
 // ═══════════ OVERVIEW ═══════════
 function renderOverview(){
   const shawnNext=getNextShawnPay();
-  const jaclynNext=new Date(shawnNext.getTime()+86400000); // Jaclyn one day later
+  const jaclynNext=new Date(shawnNext.getTime()+86400000);
   const d=daysUntil(shawnNext);
   document.getElementById('hdr-pay').textContent=d===0?'Today!':d===1?'Tomorrow':fmtDate(shawnNext);
   document.getElementById('ov-shawn').textContent=fmtDate(shawnNext);
@@ -1004,6 +1128,17 @@ function renderOverview(){
   document.getElementById('ov-bank').textContent=f2(S.bank);
   document.getElementById('ov-loc').textContent=fmt(S.loc);
   document.getElementById('ov-cc').textContent=f2(S.cc);
+
+  // Update cash remaining card
+  const {remaining}=calcCashRemaining();
+  const crEl=document.getElementById('cr-amount');
+  if(crEl){
+    crEl.textContent=f2(remaining);
+    crEl.className='mval '+(remaining>500?'g':remaining>0?'gold':'r');
+    const bar=document.getElementById('cr-bar');
+    if(bar){const pct=S.bank>0?Math.max(0,Math.min(100,Math.round(remaining/S.bank*100))):0;bar.style.width=pct+'%';bar.style.background=pct>30?'var(--green)':pct>10?'var(--orange)':'var(--red)';}
+  }
+  if(cashBreakdownOpen) renderCashRemaining();
 
   const spent=Object.values(S.envSpent).reduce((a,b)=>a+b,0);
   const effEnv=getEffEnv();
@@ -1064,7 +1199,7 @@ function renderEnvelope(){
   const effEnv=getEffEnv();
   const rem=effEnv-spent;
   const pct=Math.min(100,effEnv>0?Math.round(spent/effEnv*100):0);
-  const overages=getBillOverages();
+  const overages=getBillVariance();
 
   document.getElementById('env-bud').textContent=f2(effEnv);
   document.getElementById('env-spent').textContent=f2(spent);
@@ -1132,14 +1267,14 @@ let billFilter='all';
 function filterBills(f,el){billFilter=f;document.querySelectorAll('#panel-loc .ftab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderBills();}
 
 function renderBills(){
+  // Every-pay bills shown at top
+  const everyPay=BILLS.filter(b=>b.freq==='every-pay')
+    .map(b=>({...b,next:new Date(),days:0,nextDueLabel:'Every pay day'}));
+
   // Regular monthly bills sorted by days until due
   let monthly=BILLS.filter(b=>b.freq!=='quarterly'&&b.freq!=='every-pay'&&b.day>0)
     .map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))}))
     .sort((a,b)=>a.days-b.days);
-
-  // Every-pay bills shown at top
-  const everyPay=BILLS.filter(b=>b.freq==='every-pay')
-    .map(b=>({...b,next:new Date(),days:0,nextDueLabel:'Every pay day'}));
 
   // Quarterly bills at end
   const quarterly=BILLS.filter(b=>b.freq==='quarterly')
@@ -1147,35 +1282,41 @@ function renderBills(){
 
   let list=[...everyPay,...monthly,...quarterly];
 
+  // Apply filters
   if(billFilter==='paid') list=list.filter(b=>S.billData[b.id]?.paid);
-  else if(billFilter==='unpaid') list=list.filter(b=>!S.billData[b.id]?.paid);
-  else if(billFilter==='bank') list=list.filter(b=>b.type==='bank'||b.type==='bank-loc');
-  else if(billFilter==='cc') list=list.filter(b=>b.type==='cc');
-  else if(billFilter==='loc') list=list.filter(b=>b.type==='loc'||b.type==='bank-loc');
+  else if(billFilter==='unpaid') list=list.filter(b=>!S.billData[b.id]?.paid&&!S.billData[b.id]?.paused);
+  else if(billFilter==='paused') list=list.filter(b=>S.billData[b.id]?.paused);
+  else if(billFilter==='bank') list=list.filter(b=>(b.type==='bank'||b.type==='bank-loc')&&!S.billData[b.id]?.paused);
+  else if(billFilter==='cc') list=list.filter(b=>b.type==='cc'&&!S.billData[b.id]?.paused);
+  else if(billFilter==='loc') list=list.filter(b=>(b.type==='loc'||b.type==='bank-loc')&&!S.billData[b.id]?.paused);
+  else list=list.filter(b=>!S.billData[b.id]?.paused); // 'all' hides paused
 
   document.getElementById('bills-list').innerHTML=list.map(b=>{
     const bd=S.billData[b.id]||{};
     const isPaid=!!bd.paid;
+    const isPaused=!!bd.paused;
     const displayAmt=bd.actualAmt||b.amt;
     const diff=bd.actualAmt&&b.amt?(bd.actualAmt-b.amt):0;
-    const nextDueStr=bd.nextDue||(b.nextDueLabel||( b.day?fmtDate(b.next):'Every pay day'));
+    const nextDueStr=bd.nextDue||(b.nextDueLabel||(b.day?fmtDate(b.next):'Every pay day'));
     const isExempt=LOC_BUFFER_BILLS.includes(b.id);
 
-    return `<div class="bill-wrap">
+    return `<div class="bill-wrap" ${isPaused?'style="opacity:.5"':''}>
       <div class="bill-main" onclick="toggleBillDetail('${b.id}')">
         <div style="flex:1;min-width:0">
-          <div class="rname">${b.name}</div>
+          <div class="rname">${b.name}${isPaused?` <span style="font-size:10px;color:var(--text3);font-weight:400">(Paused${bd.resumeDate?' · resumes '+bd.resumeDate:''})</span>`:''}</div>
           <div class="rsub" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
             ${typeBadge(b.type)}
-            ${b.day?`<span>Next due: <strong>${nextDueStr}</strong></span>`:''}
+            ${b.day||b.freq==='every-pay'?`<span>Next due: <strong>${nextDueStr}</strong></span>`:''}
             ${isPaid?`<span class="paid-chip">✓ Paid ${bd.paidDate||''} via ${bd.paidFrom||''}</span>`:''}
-            ${diff>0?`<span class="over-chip">${isExempt?'Overage→LOC':'Overage→envelope'} +${f2(diff)}</span>`:''}
+            ${diff>0&&!isExempt?`<span class="over-chip">Overage→envelope −${f2(diff)}</span>`:''}
+            ${diff>0&&isExempt?`<span class="over-chip">Overage→LOC +${f2(diff)}</span>`:''}
+            ${diff<0&&!isExempt?`<span style="background:var(--green-dim);color:var(--green);font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700">Underage→envelope +${f2(Math.abs(diff))}</span>`:''}
             ${b.note?`<span style="font-size:10px;color:var(--text3)">${b.note}</span>`:''}
           </div>
         </div>
         <div class="rright">
           <span class="ramt">${b.amt?f2(displayAmt):'—'}</span>
-          <button class="pay-btn ${isPaid?'paid':''}" onclick="event.stopPropagation();openPayBill('${b.id}')">${isPaid?'✓':'Pay'}</button>
+          ${!isPaused?`<button class="pay-btn ${isPaid?'paid':''}" onclick="event.stopPropagation();openPayBill('${b.id}')">${isPaid?'✓':'Pay'}</button>`:''}
         </div>
       </div>
       <div class="bill-detail" id="bd-${b.id}">
@@ -1183,13 +1324,17 @@ function renderBills(){
           <div><label>Next due date</label><input type="text" id="ndue-${b.id}" value="${nextDueStr}" placeholder="e.g. Jun 25"></div>
           <div><label>Date paid</label><input type="text" id="pdate-${b.id}" value="${bd.paidDate||''}" placeholder="e.g. May 15"></div>
         </div>
+        ${isPaused?`<div style="margin-bottom:8px"><label>Resume date</label><input type="text" id="rdate-${b.id}" value="${bd.resumeDate||''}" placeholder="e.g. Sep 1 2026"></div>`:''}
         <div class="brow">
           <button class="btn btn-gold btn-sm" onclick="saveBillDates('${b.id}')">Save dates</button>
+          ${isPaused
+            ?`<button class="btn btn-green btn-sm" onclick="unpauseBill('${b.id}')">▶ Resume bill</button>`
+            :`<button class="btn btn-sm" onclick="pauseBill('${b.id}')">⏸ Pause bill</button>`}
           ${isPaid?`<button class="btn btn-red btn-sm" onclick="unpayBill('${b.id}')">Unmark paid</button>`:''}
         </div>
       </div>
     </div>`;
-  }).join('');
+  }).join('')||'<p style="font-size:13px;color:var(--text3);padding:8px 0">No bills in this filter.</p>';
 }
 
 function toggleBillDetail(id){document.getElementById(`bd-${id}`)?.classList.toggle('open');}
@@ -1499,10 +1644,11 @@ function showPanel(name,el){
   if(name==='history') renderHistory();
 }
 
-function renderAll(){renderOverview();renderChecklist();renderEnvelope();renderBills();renderSinkFunds();}
+function renderAll(){renderOverview();renderChecklist();renderEnvelope();renderBills();renderSinkFunds();renderCashRemaining();}
 
 // ═══════════ INIT ═══════════
 initDB();
+checkAutoResume();
 </script>
 </body>
 </html>
