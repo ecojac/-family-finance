@@ -1041,49 +1041,46 @@ function checkAutoResume(){
 // ═══════════ CASH REMAINING ═══════════
 function calcCashRemaining(){
   const nextPay=getNextShawnPay();
-  const today=new Date(); today.setHours(0,0,0,0);
 
-  // Unpaid bank bills due before next Shawn pay day
-  const upcomingBankBills=BILLS.filter(b=>{
-    if(b.type!=='bank'&&b.type!=='bank-loc') return false;
-    if(S.billData[b.id]?.paid) return false; // already paid — money already gone
-    if(S.billData[b.id]?.paused) return false; // paused — skip
-    if(b.freq==='every-pay') return true; // always due this cycle
+  // ALL unpaid bills due before next Shawn pay day — regardless of type
+  const upcomingBills=BILLS.filter(b=>{
+    if(S.billData[b.id]?.paid) return false;   // already paid
+    if(S.billData[b.id]?.paused) return false; // paused
+    if(b.freq==='every-pay') return true;       // always due this cycle
+    if(b.freq==='quarterly') return false;      // skip quarterly unless due soon
     if(!b.day) return false;
     const due=nextOcc(b.day);
-    return due<=nextPay; // due before or on next pay day
+    return due<=nextPay;
   });
 
-  const billTotal=upcomingBankBills.reduce((s,b)=>s+(S.billData[b.id]?.actualAmt||b.amt),0);
+  const billTotal=upcomingBills.reduce((s,b)=>s+(S.billData[b.id]?.actualAmt||b.amt),0);
   const sinkTotal=(S.sinkFunds||[]).reduce((s,sf)=>s+(sf.balance||0),0);
   const remaining=S.bank-billTotal-sinkTotal;
 
-  return {remaining, billTotal, sinkTotal, upcomingBankBills};
+  return {remaining, billTotal, sinkTotal, upcomingBills};
 }
 
 function renderCashRemaining(){
-  const {remaining,billTotal,sinkTotal,upcomingBankBills}=calcCashRemaining();
+  const {remaining,billTotal,sinkTotal,upcomingBills}=calcCashRemaining();
   const amtEl=document.getElementById('cr-amount');
   if(!amtEl) return;
   amtEl.textContent=f2(remaining);
   amtEl.className='mval '+(remaining>500?'g':remaining>0?'gold':'r');
 
-  // Progress bar — how much of bank is truly free
   const pct=S.bank>0?Math.max(0,Math.min(100,Math.round(remaining/S.bank*100))):0;
   const bar=document.getElementById('cr-bar');
   if(bar){bar.style.width=pct+'%';bar.style.background=pct>30?'var(--green)':pct>10?'var(--orange)':'var(--red)';}
 
-  // Breakdown
   document.getElementById('cr-bank').textContent=f2(S.bank);
 
-  const billsHTML=upcomingBankBills.map(b=>`
+  const billsHTML=upcomingBills.map(b=>`
     <div class="row" style="padding:6px 0">
-      <span style="color:var(--text2);font-size:13px">${b.name}</span>
+      <span style="color:var(--text2);font-size:13px">${b.name} ${typeBadge(b.type)}</span>
       <span style="color:var(--red);font-weight:600;font-size:13px">−${f2(S.billData[b.id]?.actualAmt||b.amt)}</span>
     </div>`).join('');
   document.getElementById('cr-bills-list').innerHTML=
-    `<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:8px 0 4px;font-weight:600">Unpaid bank bills this cycle</div>`+
-    (billsHTML||'<div style="font-size:13px;color:var(--text3);padding:4px 0">No unpaid bank bills</div>')+
+    `<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:8px 0 4px;font-weight:600">Unpaid bills this cycle</div>`+
+    (billsHTML||'<div style="font-size:13px;color:var(--text3);padding:4px 0">No unpaid bills</div>')+
     `<div class="row" style="padding:6px 0;font-weight:600"><span>Bills subtotal</span><span style="color:var(--red)">−${f2(billTotal)}</span></div>`;
 
   const sinksHTML=(S.sinkFunds||[]).filter(sf=>sf.balance>0).map(sf=>`
