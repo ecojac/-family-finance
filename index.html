@@ -364,6 +364,7 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-wei
     <button class="btn btn-green btn-sm" onclick="openModal('credit')">+ Add money to bank</button>
     <button class="btn btn-blue btn-sm" onclick="openQuickPayCC()">Pay CC balance</button>
     <button class="btn btn-sm" onclick="openQuickPayLOC()">Pay down LOC</button>
+    <button class="btn btn-sm" onclick="openQuickPay('b26','bank')">Log $150 spending</button>
   </div>
   <div class="card">
     <div class="ctitle">Next pay days</div>
@@ -605,6 +606,7 @@ const BILLS = [
   {id:'b24',name:'Property Tax actual bill',  amt:1928,    day:1,  type:'loc',  freq:'quarterly', note:'Paid from LOC when due every 3 months'},
   // Every pay
   {id:'b25',name:'Credit card payoff',        amt:0,       day:0,  type:'bank', freq:'every-pay', note:'Pay full CC balance every pay day'},
+  {id:'b26',name:'Spending money (cash)',      amt:150,     day:0,  type:'bank', freq:'every-pay', note:'$75 each — coffee, lunch at work'},
 ];
 
 const ENV_CATS = {
@@ -834,6 +836,23 @@ async function saveBal(key){
   await logTxn(`${label} balance override`,Math.abs(val-old),val>old?'credit':'debit',key,`Manually corrected from ${key==='env'?f2(old):fmt(old)} to ${key==='env'?f2(val):fmt(val)}`);
   await saveToDB(`${label} updated ✓`);
   renderAll();
+}
+
+function openQuickPay(billId, src){
+  const bill=BILLS.find(b=>b.id===billId);
+  if(!bill) return;
+  currentBillId=billId;
+  selectedSrc=null;
+  document.getElementById('pb-title').textContent=bill.name;
+  document.getElementById('pb-sub').textContent=`${bill.note||''} · ${f2(bill.amt)}`;
+  document.getElementById('pb-amount').value=bill.amt.toFixed(2);
+  document.getElementById('pb-diff').style.display='none';
+  document.getElementById('pb-date').value=fmtDate(new Date());
+  document.getElementById('pb-nextdue').value='Every pay day';
+  document.getElementById('pb-id').value=billId;
+  ['bank','loc','cc','bank-loc','bank-cc'].forEach(s=>{const el=document.getElementById('src-'+s);if(el)el.classList.remove('selected');});
+  selectSrc(src||'bank');
+  openModal('paybill');
 }
 
 function openQuickPayCC(){
@@ -1113,25 +1132,34 @@ let billFilter='all';
 function filterBills(f,el){billFilter=f;document.querySelectorAll('#panel-loc .ftab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderBills();}
 
 function renderBills(){
-  let list=BILLS.filter(b=>b.freq!=='quarterly'&&b.day>0)
+  // Regular monthly bills sorted by days until due
+  let monthly=BILLS.filter(b=>b.freq!=='quarterly'&&b.freq!=='every-pay'&&b.day>0)
     .map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))}))
     .sort((a,b)=>a.days-b.days);
 
-  // Add quarterly bills at end
-  const quarterly=BILLS.filter(b=>b.freq==='quarterly');
-  list=[...list,...quarterly.map(b=>({...b,next:new Date(),days:0}))];
+  // Every-pay bills shown at top
+  const everyPay=BILLS.filter(b=>b.freq==='every-pay')
+    .map(b=>({...b,next:new Date(),days:0,nextDueLabel:'Every pay day'}));
+
+  // Quarterly bills at end
+  const quarterly=BILLS.filter(b=>b.freq==='quarterly')
+    .map(b=>({...b,next:new Date(),days:0,nextDueLabel:'When due (quarterly)'}));
+
+  let list=[...everyPay,...monthly,...quarterly];
 
   if(billFilter==='paid') list=list.filter(b=>S.billData[b.id]?.paid);
   else if(billFilter==='unpaid') list=list.filter(b=>!S.billData[b.id]?.paid);
-  else if(billFilter!=='all') list=list.filter(b=>b.type===billFilter);
+  else if(billFilter==='bank') list=list.filter(b=>b.type==='bank'||b.type==='bank-loc');
+  else if(billFilter==='cc') list=list.filter(b=>b.type==='cc');
+  else if(billFilter==='loc') list=list.filter(b=>b.type==='loc'||b.type==='bank-loc');
 
   document.getElementById('bills-list').innerHTML=list.map(b=>{
     const bd=S.billData[b.id]||{};
     const isPaid=!!bd.paid;
     const displayAmt=bd.actualAmt||b.amt;
     const diff=bd.actualAmt&&b.amt?(bd.actualAmt-b.amt):0;
-    const nextDueStr=bd.nextDue||(b.day?fmtDate(b.next):'When due');
-    const isExempt=LOC_BUFFER_BILLS.includes(b.id)||b.id==='b23';
+    const nextDueStr=bd.nextDue||(b.nextDueLabel||( b.day?fmtDate(b.next):'Every pay day'));
+    const isExempt=LOC_BUFFER_BILLS.includes(b.id);
 
     return `<div class="bill-wrap">
       <div class="bill-main" onclick="toggleBillDetail('${b.id}')">
