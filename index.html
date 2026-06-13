@@ -562,8 +562,8 @@ const SHAWN_PAY_BASE = new Date(2026,4,15); // May 15 next Thursday pay
 const LOC_RATE = 0.0465;
 const DEFAULT_ENV = 1010.09;
 
-// Bills that NEVER reduce envelope even if over budget
-const LOC_BUFFER_BILLS = ['b20','b21']; // Property Tax, Water
+// Bills that NEVER reduce envelope even if over budget (Water & Property Tax go to LOC buffer)
+const LOC_BUFFER_BILLS = ['b22','b23']; // b22=Property Tax→LOC, b23=Water→LOC
 
 // Bills — complete list with CORRECT amounts
 // Monthly bills = paid once per month (full amount)
@@ -583,8 +583,8 @@ const BILLS = [
   {id:'b08',name:'Jaclyn Life Insurance',     amt:34.74,   day:15, type:'bank', freq:'monthly'},
   {id:'b09',name:'Reliance water heater',     amt:100,     day:15, type:'cc',   freq:'monthly'},
   {id:'b10',name:'Feed the Need',             amt:31.40,   day:15, type:'cc',   freq:'monthly'},
-  {id:'b11',name:'Shawn Car → LOC',           amt:580,     day:15, type:'bank', freq:'monthly', note:'Monthly — reduces LOC balance'},
-  {id:'b12',name:'TD Transfer → LOC',         amt:110,     day:15, type:'bank', freq:'monthly', note:'Monthly — covers LOC interest'},
+  {id:'b11',name:'Shawn Car → LOC',           amt:580,     day:15, type:'bank-loc', freq:'monthly', note:'Monthly — bank ↓ and LOC ↓'},
+  {id:'b12',name:'TD Transfer → LOC',         amt:110,     day:15, type:'bank-loc', freq:'monthly', note:'Monthly — covers LOC interest, bank ↓ and LOC ↓'},
   // 16th
   {id:'b13',name:'Mortgage',                  amt:3600,    day:16, type:'bank', freq:'monthly'},
   // 19th
@@ -787,14 +787,16 @@ function nextOcc(day){if(!day)return new Date();const t=new Date();t.setHours(0,
 function daysUntil(d){const t=new Date();t.setHours(0,0,0,0);return Math.round((d-t)/86400000);}
 function fmtDate(d){return d.toLocaleDateString('en-CA',{month:'short',day:'numeric'});}
 function daysBadge(n){if(n<=0)return'<span class="badge b-due">Due now</span>';if(n<=7)return'<span class="badge b-soon">'+n+'d</span>';return'<span class="badge b-ok">'+n+'d</span>';}
-function typeBadge(t){if(t==='loc')return'<span class="badge b-loc">LOC</span>';if(t==='cc')return'<span class="badge b-cc">CC</span>';return'<span class="badge b-bank">Bank</span>';}
+function typeBadge(t){if(t==='loc')return'<span class="badge b-loc">LOC</span>';if(t==='cc')return'<span class="badge b-cc">CC</span>';if(t==='bank-loc')return'<span class="badge b-bank">Bank→LOC</span>';return'<span class="badge b-bank">Bank</span>';}
 
 function getBillOverages(){
   return Object.entries(S.billData).reduce((sum,[id,d])=>{
-    if(LOC_BUFFER_BILLS.includes(id)) return sum; // Water & prop tax never hit envelope
-    if(id==='b23') return sum; // Water
+    // Skip non-bill entries (CC payoff, LOC payments etc)
+    if(!id.startsWith('b') || isNaN(id.slice(1))) return sum;
+    // Water and Property Tax never reduce envelope
+    if(LOC_BUFFER_BILLS.includes(id)) return sum;
     const bill=BILLS.find(b=>b.id===id);
-    if(!bill||!d.actualAmt) return sum;
+    if(!bill||!d.actualAmt||!bill.amt) return sum;
     const diff=d.actualAmt-bill.amt;
     return diff>0?sum+diff:sum;
   },0);
@@ -894,10 +896,12 @@ function openPayBill(billId){
   document.getElementById('pb-nextdue').value=bill.day?fmtDate(next):'';
   document.getElementById('pb-id').value=billId;
   ['bank','loc','cc','bank-loc','bank-cc'].forEach(s=>{const el=document.getElementById('src-'+s);if(el)el.classList.remove('selected');});
-  // Auto-suggest source
+  // Auto-suggest source based on bill type
   if(bill.type==='bank') selectSrc('bank');
-  else if(bill.type==='loc') selectSrc('bank'); // LOC bills come from bank
-  else if(bill.type==='cc') selectSrc('cc');    // CC bills charged to CC
+  else if(bill.type==='bank-loc') selectSrc('bank-loc');
+  else if(bill.type==='loc') selectSrc('bank');   // LOC bills paid from bank
+  else if(bill.type==='cc') selectSrc('cc');       // CC bills charged to CC
+  else selectSrc('bank');
   openModal('paybill');
 }
 
@@ -927,31 +931,31 @@ function previewDiff(){
 async function confirmPay(){
   if(!selectedSrc){toast('Please choose where this is paid from');return;}
   const actual=parseFloat(document.getElementById('pb-amount').value)||0;
-  if(actual<=0){toast('Enter an amount');return;}
+  if(actual<=0){toast('Enter an amount greater than zero');return;}
   const paidDate=document.getElementById('pb-date').value||fmtDate(new Date());
   const nextDue=document.getElementById('pb-nextdue').value;
   const billId=document.getElementById('pb-id').value;
 
-  // Only update billData for real bills in the BILLS array
+  // Only update billData for real bills
   const bill=BILLS.find(b=>b.id===billId);
   if(bill){
     if(!S.billData[billId]) S.billData[billId]={};
     S.billData[billId]={paid:true, paidDate, nextDue, actualAmt:actual, paidFrom:selectedSrc};
   }
 
-  // Update balances based on source
+  // Update balances — never let any go below 0 except LOC which can grow
   if(selectedSrc==='bank'){
     S.bank=Math.max(0,S.bank-actual);
   } else if(selectedSrc==='loc'){
-    S.loc=S.loc+actual;
+    S.loc=S.loc+actual; // charging to LOC increases what you owe
   } else if(selectedSrc==='cc'){
-    S.cc=S.cc+actual;
+    S.cc=S.cc+actual;   // charging to CC increases what you owe
   } else if(selectedSrc==='bank-loc'){
     S.bank=Math.max(0,S.bank-actual);
-    S.loc=Math.max(0,S.loc-actual);
+    S.loc=Math.max(0,S.loc-actual);  // paying DOWN LOC — both decrease
   } else if(selectedSrc==='bank-cc'){
     S.bank=Math.max(0,S.bank-actual);
-    S.cc=Math.max(0,S.cc-actual);
+    S.cc=Math.max(0,S.cc-actual);    // paying OFF CC — both decrease
   }
 
   const desc=bill?bill.name:selectedSrc==='bank-cc'?'Credit card payoff':'LOC payment';
@@ -959,7 +963,7 @@ async function confirmPay(){
   await logTxn(desc, actual, 'debit', accountLabel, `Paid ${paidDate}`);
 
   closeModal('paybill');
-  await saveToDB(`${desc} paid ✓`);
+  await saveToDB(`${desc} ✓`);
   renderAll();
 }
 
