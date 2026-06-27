@@ -638,14 +638,14 @@ const ENV_CATS = {
 };
 
 const CHECKLIST = [
-  {id:'c1',group:'accounts',title:'Check bank balance is accurate',sub:'Tap Overview → bank shows correctly? If not, tap ⚙️ to override',amt:''},
-  {id:'c2',group:'accounts',title:'Log any credits received',sub:'Tax return, reimbursement, gift? Tap "+ Add money to bank" on Overview',amt:''},
-  {id:'c3',group:'bills',title:'Pay credit card in full',sub:'Go to LOC & Bills → find CC payoff → tap Pay → choose Bank → CC payoff',amt:'Full CC balance'},
-  {id:'c4',group:'bills',title:'Pay Shawn car → LOC',sub:'LOC & Bills → Shawn Car → tap Pay → Bank → LOC paydown',amt:'$580'},
-  {id:'c5',group:'bills',title:'TD Transfer → LOC',sub:'LOC & Bills → TD Transfer → tap Pay → Bank → LOC paydown',amt:'$110'},
-  {id:'c6',group:'bills',title:'Check all other bills due this cycle',sub:'LOC & Bills → filter Unpaid → mark each one paid from correct source',amt:''},
-  {id:'c7',group:'loc',title:'Add cycle to sink funds',sub:'LOC & Bills → Sink funds → tap "+ Add cycle" for Pets, Car, Gifts, Home',amt:''},
-  {id:'c8',group:'checkin',title:'Check envelope spending',sub:'How did last cycle go? Any categories to watch this cycle?',amt:''},
+  {id:'c1',group:'accounts',title:'Add combined pay to bank',sub:'Overview → "+ Add money to bank" → enter $5,278.63 (or actual amount)',amt:'$5,278.63'},
+  {id:'c2',group:'accounts',title:'Check bank balance is accurate',sub:'Confirm the balance shown matches your TD account',amt:''},
+  {id:'c3',group:'bills',title:'Pay credit card in full',sub:'Overview → "Pay CC balance" → confirm Bank→CC payoff',amt:'Full CC balance'},
+  {id:'c4',group:'bills',title:'Pay Shawn car → LOC',sub:'LOC & Bills → Shawn Car → Pay → Bank→LOC paydown',amt:'$580'},
+  {id:'c5',group:'bills',title:'TD Transfer → LOC',sub:'LOC & Bills → TD Transfer → Pay → Bank→LOC paydown',amt:'$110'},
+  {id:'c6',group:'bills',title:'Check all other bills due this cycle',sub:'LOC & Bills → filter Unpaid → mark each one paid',amt:''},
+  {id:'c7',group:'loc',title:'Add cycle to sink funds',sub:'LOC & Bills → Sink funds → tap "+ Add cycle" for each fund',amt:''},
+  {id:'c8',group:'checkin',title:'Check envelope & cash remaining',sub:'How did last cycle go? Review Overview → Cash Remaining',amt:''},
 ];
 
 // ═══════════ STATE ═══════════
@@ -756,7 +756,17 @@ function isPayday(){
 
 function checkPayday(){
   const today=new Date().toISOString().split('T')[0];
-  if(isPayday() && S.lastPaydayReset !== today){
+  // Trigger reset if today IS pay day OR if we've missed a pay day since last reset
+  const lastReset=S.lastPaydayReset?new Date(S.lastPaydayReset):new Date(0);
+  const shawnNext=getNextShawnPay();
+  // Find the most recent pay day (could be today or in the past)
+  const todayDate=new Date(); todayDate.setHours(0,0,0,0);
+  // Walk back from next pay to find last pay day
+  const lastPayDay=new Date(shawnNext.getTime()-14*86400000);
+  // If last pay day is after our last reset, we need to reset
+  if(lastPayDay>lastReset && todayDate>=lastPayDay && S.lastPaydayReset!==lastPayDay.toISOString().split('T')[0]){
+    doPaydayReset(lastPayDay.toISOString().split('T')[0]);
+  } else if(todayDate.toISOString().split('T')[0]===shawnNext.toISOString().split('T')[0] && S.lastPaydayReset!==today){
     doPaydayReset(today);
   }
 }
@@ -784,19 +794,31 @@ async function doPaydayReset(today){
     contributed.push(`${sf.name} +${f2(sf.perCycle)}`);
   });
 
-  // Reset ONLY envelope — everything else preserved
+  // Reset envelope spending log
   S.envSpent={food:0,gas:0,kids:0,misc:0};
   S.envLog=[];
   S.checkDone={};
   S.lastPaydayReset=today;
   S.cycleStart=today;
-  // billData, balances, sinkFunds balances — ALL preserved
+
+  // Reset bill PAID status for new cycle — keep nextDue, paused, resumeDate
+  // Every-pay bills and monthly bills all reset so they can be paid again
+  Object.keys(S.billData).forEach(id=>{
+    const bd=S.billData[id];
+    if(bd.paid){
+      bd.paid=false;
+      delete bd.paidDate;
+      delete bd.paidFrom;
+      delete bd.actualAmt;
+      // Keep: nextDue, paused, resumeDate
+    }
+  });
 
   await saveToDB();
 
   // Show banner
   const banner=document.getElementById('payday-banner');
-  document.getElementById('banner-sub').textContent=`Sink funds updated (${contributed.join(', ')}) · ${f2(S.envelope)} available`;
+  document.getElementById('banner-sub').textContent=`Sink funds updated (${contributed.join(', ')}) · ${f2(S.envelope)} available · Don't forget to add your pay!`;
   banner.classList.add('show');
 
   renderAll();
@@ -1254,10 +1276,10 @@ async function logSpend(){
 }
 
 async function manualResetEnvelope(){
-  if(!confirm('Reset envelope for new cycle?\n\nOnly spending log clears. Balances, bill dates, sink funds and history are NOT affected.')) return;
+  if(!confirm('Reset for new cycle?\n\nThis will:\n✓ Clear spending log\n✓ Reset all bill paid statuses\n✓ Auto-contribute sink funds\n\nBalances and bill due dates are NOT affected.')) return;
   const today=new Date().toISOString().split('T')[0];
   await doPaydayReset(today);
-  toast('Envelope reset ✓');
+  toast('Cycle reset ✓');
 }
 
 async function delLog(idx){
