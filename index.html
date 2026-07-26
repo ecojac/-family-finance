@@ -384,7 +384,6 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-wei
     <button class="btn btn-green btn-sm" onclick="openModal('credit')">+ Add money to bank</button>
     <button class="btn btn-blue btn-sm" onclick="openQuickPayCC()">Pay CC balance</button>
     <button class="btn btn-sm" onclick="openQuickPayLOC()">Pay down LOC</button>
-    <button class="btn btn-sm" onclick="openQuickPay('b26','bank')">Log $150 spending</button>
   </div>
   <div class="card">
     <div class="ctitle">Next pay days</div>
@@ -435,6 +434,15 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-wei
         </select>
       </div>
       <div><label>Amount ($)</label><input type="number" id="log-amt" placeholder="0.00" inputmode="decimal"></div>
+    </div>
+    <div style="margin-bottom:9px">
+      <label>Paid with</label>
+      <div class="src-grid" style="margin-top:5px;grid-template-columns:1fr 1fr 1fr 1fr">
+        <div class="src-btn selected" id="env-src-cc" onclick="selectEnvSrc('cc')">💳 CC<div class="src-sub">CC ↑</div></div>
+        <div class="src-btn" id="env-src-bank" onclick="selectEnvSrc('bank')">🏦 Bank<div class="src-sub">Bank ↓</div></div>
+        <div class="src-btn" id="env-src-loc" onclick="selectEnvSrc('loc')">📋 LOC<div class="src-sub">LOC ↑</div></div>
+        <div class="src-btn" id="env-src-none" onclick="selectEnvSrc('none')">💵 Cash<div class="src-sub">No change</div></div>
+      </div>
     </div>
     <label>Note (optional)</label>
     <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
@@ -1255,10 +1263,19 @@ function renderEnvelope(){
     logCard.style.display='block';
     document.getElementById('log-list').innerHTML=[...S.envLog].reverse().map((l,i)=>`
       <div class="row">
-        <div><div class="rname">${ENV_CATS[l.cat]?.label||l.cat}</div>${l.note?`<div class="rsub">${l.note}</div>`:''}${l.date?`<div class="rsub">${l.date}</div>`:''}</div>
+        <div>
+          <div class="rname">${ENV_CATS[l.cat]?.label||l.cat}</div>
+          <div class="rsub">${l.note?l.note+' · ':''}${l.date||''} · paid via ${l.src==='cc'?'💳 CC':l.src==='bank'?'🏦 Bank':l.src==='loc'?'📋 LOC':'💵 Cash'}</div>
+        </div>
         <div class="rright"><span class="ramt">${f2(l.amt)}</span><span style="font-size:11px;color:var(--red);cursor:pointer;padding:3px 7px" onclick="delLog(${S.envLog.length-1-i})">✕</span></div>
       </div>`).join('');
   } else logCard.style.display='none';
+}
+
+let envSrc='cc';
+function selectEnvSrc(src){
+  envSrc=src;
+  ['cc','bank','loc','none'].forEach(s=>{const el=document.getElementById('env-src-'+s);if(el)el.classList.toggle('selected',s===src);});
 }
 
 async function logSpend(){
@@ -1267,10 +1284,17 @@ async function logSpend(){
   const note=document.getElementById('log-note').value.trim();
   if(amt<=0){toast('Enter an amount');return;}
   S.envSpent[cat]=(S.envSpent[cat]||0)+amt;
-  const entry={cat,amt,note,date:new Date().toLocaleDateString('en-CA',{month:'short',day:'numeric'})};
+  const entry={cat,amt,note,src:envSrc,date:new Date().toLocaleDateString('en-CA',{month:'short',day:'numeric'})};
   S.envLog.push(entry);
+
+  // Update account balance based on payment method
+  if(envSrc==='cc') S.cc=S.cc+amt;
+  else if(envSrc==='bank') S.bank=Math.max(0,S.bank-amt);
+  else if(envSrc==='loc') S.loc=S.loc+amt;
+
   document.getElementById('log-amt').value='';
   document.getElementById('log-note').value='';
+  await logTxn(`${ENV_CATS[cat]?.label||cat}${note?' — '+note:''}`,amt,'debit',envSrc,'Envelope spend');
   await saveToDB(`Logged ${f2(amt)} ✓`);
   renderEnvelope(); renderOverview();
 }
@@ -1285,6 +1309,9 @@ async function manualResetEnvelope(){
 async function delLog(idx){
   const l=S.envLog[idx];
   S.envSpent[l.cat]=Math.max(0,(S.envSpent[l.cat]||0)-l.amt);
+  if(l.src==='cc') S.cc=Math.max(0,S.cc-l.amt);
+  else if(l.src==='bank') S.bank=S.bank+l.amt;
+  else if(l.src==='loc') S.loc=Math.max(0,S.loc-l.amt);
   S.envLog.splice(idx,1);
   await saveToDB('Entry removed');
   renderEnvelope(); renderOverview();
