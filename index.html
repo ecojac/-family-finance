@@ -350,6 +350,46 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-wei
   </div>
 </div>
 
+<!-- ADD / EDIT BILL MODAL -->
+<div class="overlay" id="modal-bill-editor" onclick="if(event.target===this)closeModal('bill-editor')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('bill-editor')">✕</button>
+    <div class="sheet-title" id="bill-editor-title">Add bill</div>
+    <div style="margin-bottom:10px"><label>Bill name</label><input type="text" id="be-name" placeholder="e.g. Netflix, Gym membership"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px">
+      <div><label>Amount ($)</label><input type="number" id="be-amt" placeholder="0.00" inputmode="decimal"></div>
+      <div><label>Due day of month</label><input type="number" id="be-day" placeholder="1–31 (0 = every pay)" inputmode="numeric" min="0" max="31"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px">
+      <div>
+        <label>Payment type</label>
+        <select id="be-type">
+          <option value="cc">💳 Credit card (CC ↑)</option>
+          <option value="bank">🏦 Bank (Bank ↓)</option>
+          <option value="loc">📋 LOC (LOC ↑)</option>
+          <option value="bank-loc">Bank → LOC (both ↓)</option>
+          <option value="bank-cc">Bank → CC (both ↓)</option>
+        </select>
+      </div>
+      <div>
+        <label>Frequency</label>
+        <select id="be-freq">
+          <option value="monthly">Monthly</option>
+          <option value="every-pay">Every pay day</option>
+          <option value="quarterly">Quarterly</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:14px"><label>Notes (optional)</label><input type="text" id="be-notes" placeholder="e.g. Auto-debit, not from envelope"></div>
+    <input type="hidden" id="be-id">
+    <button class="btn btn-gold btn-full" onclick="saveBillEditor()">Save bill</button>
+    <div id="be-delete-wrap" style="display:none;margin-top:8px">
+      <button class="btn btn-red btn-full" onclick="deleteBill()">Delete this bill</button>
+    </div>
+  </div>
+</div>
+
 <main class="main">
 
 <!-- OVERVIEW -->
@@ -491,7 +531,7 @@ label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-wei
   <hr class="divider">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
     <div style="font-size:15px;font-weight:600">All bills</div>
-    <span style="font-size:11px;color:var(--text2)">Tap to expand · tap Pay to log</span>
+    <button class="btn btn-sm btn-gold" onclick="openBillEditor()">+ Add bill</button>
   </div>
   <div class="ftabs">
     <button class="ftab active" onclick="filterBills('all',this)">All</button>
@@ -666,14 +706,16 @@ let S = {
   envSpent: {food:0, gas:0, kids:0, misc:0},
   envLog: [],
   checkDone: {},
-  billData: {},  // {billId: {paid, paidDate, nextDue, actualAmt, paidFrom}}
+  billData: {},
+  billOverrides: {},  // {billId: {name, amt, day, type, freq, note}} overrides for built-in bills
+  customBills: [],    // [{id, name, amt, day, type, freq, note}] user-added bills
   sinkFunds: [
     {id:'sf_pets',  name:'Pets',             perCycle:65.73, balance:0, notes:'Food & supplies every 8 weeks — paid on CC'},
     {id:'sf_car',   name:'Car maintenance',  perCycle:60,    balance:0, notes:'Oil changes, tires, repairs'},
     {id:'sf_gifts', name:'Gifts & occasions',perCycle:50,    balance:0, notes:'Birthdays, Christmas, celebrations'},
     {id:'sf_home',  name:'Home repairs',     perCycle:50,    balance:0, notes:'Unexpected house expenses'},
   ],
-  lastPaydayReset: null,  // ISO date string of last reset
+  lastPaydayReset: null,
   cycleStart: new Date().toISOString().split('T')[0],
 };
 let txnHistory = [];
@@ -1071,9 +1113,9 @@ function checkAutoResume(){
 // ═══════════ CASH REMAINING ═══════════
 function calcCashRemaining(){
   const nextPay=getNextShawnPay();
+  const allBills=getAllBills();
 
-  // ALL unpaid bills due before next Shawn pay day — regardless of type
-  const upcomingBills=BILLS.filter(b=>{
+  const upcomingBills=allBills.filter(b=>{
     if(S.billData[b.id]?.paid) return false;
     if(S.billData[b.id]?.paused) return false;
     if(b.freq==='every-pay') return true;
@@ -1183,7 +1225,7 @@ function renderOverview(){
   envEl.textContent=f2(Math.max(0,rem));
   envEl.className='mval '+(rem>effEnv*.3?'g':rem>0?'gold':'r');
 
-  const regularBills=BILLS.filter(b=>b.freq!=='quarterly'&&b.day>0);
+  const regularBills=getAllBills().filter(b=>b.freq!=='quarterly'&&b.day>0);
   const upcoming=regularBills.map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))})).filter(b=>b.days<=14&&!S.billData[b.id]?.paid&&!S.billData[b.id]?.paused).sort((a,b)=>a.days-b.days);
 
   document.getElementById('ov-bills').innerHTML=upcoming.length
@@ -1317,9 +1359,157 @@ async function delLog(idx){
   renderEnvelope(); renderOverview();
 }
 
+// ═══════════ BILL EDITOR ═══════════
+// Returns merged list: built-in bills with overrides applied + custom bills
+function getAllBills(){
+  const merged = BILLS.map(b=>{
+    const ov=S.billOverrides?.[b.id];
+    return ov ? {...b,...ov} : b;
+  });
+  const custom=(S.customBills||[]);
+  return [...merged,...custom];
+}
+
+function openBillEditor(billId){
+  const allBills=getAllBills();
+  const bill=billId?allBills.find(b=>b.id===billId):null;
+  document.getElementById('bill-editor-title').textContent=bill?'Edit bill':'Add bill';
+  document.getElementById('be-name').value=bill?.name||'';
+  document.getElementById('be-amt').value=bill?.amt||'';
+  document.getElementById('be-day').value=bill?.day??'';
+  document.getElementById('be-type').value=bill?.type||'cc';
+  document.getElementById('be-freq').value=bill?.freq||'monthly';
+  document.getElementById('be-notes').value=bill?.note||'';
+  document.getElementById('be-id').value=billId||'';
+  // Show delete only for custom bills
+  const isCustom=billId&&(S.customBills||[]).some(b=>b.id===billId);
+  document.getElementById('be-delete-wrap').style.display=isCustom?'block':'none';
+  openModal('bill-editor');
+}
+
+async function saveBillEditor(){
+  const name=document.getElementById('be-name').value.trim();
+  const amt=parseFloat(document.getElementById('be-amt').value)||0;
+  const day=parseInt(document.getElementById('be-day').value)||0;
+  const type=document.getElementById('be-type').value;
+  const freq=document.getElementById('be-freq').value;
+  const note=document.getElementById('be-notes').value.trim();
+  const editId=document.getElementById('be-id').value;
+
+  if(!name){toast('Enter a bill name');return;}
+
+  if(editId){
+    // Check if it's a built-in bill — save as override
+    const isBuiltIn=BILLS.some(b=>b.id===editId);
+    if(isBuiltIn){
+      if(!S.billOverrides) S.billOverrides={};
+      S.billOverrides[editId]={name,amt,day,type,freq,note};
+    } else {
+      // Custom bill — update in place
+      const idx=(S.customBills||[]).findIndex(b=>b.id===editId);
+      if(idx>-1) S.customBills[idx]={...S.customBills[idx],name,amt,day,type,freq,note};
+    }
+  } else {
+    // New custom bill
+    if(!S.customBills) S.customBills=[];
+    S.customBills.push({id:'cb'+Date.now(),name,amt,day,type,freq,note});
+  }
+
+  closeModal('bill-editor');
+  await saveToDB('Bill saved ✓');
+  renderBills(); renderOverview();
+  toast(editId?'Bill updated ✓':'Bill added ✓');
+}
+
+async function deleteBill(){
+  const id=document.getElementById('be-id').value;
+  if(!id||!confirm('Delete this bill?')) return;
+  S.customBills=(S.customBills||[]).filter(b=>b.id!==id);
+  closeModal('bill-editor');
+  await saveToDB('Bill deleted');
+  renderBills(); renderOverview();
+  toast('Bill deleted');
+}
+
 // ═══════════ BILLS ═══════════
 let billFilter='all';
 function filterBills(f,el){billFilter=f;document.querySelectorAll('#panel-loc .ftab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderBills();}
+
+function renderBills(){
+  const allBills=getAllBills();
+
+  // Every-pay bills shown at top
+  const everyPay=allBills.filter(b=>b.freq==='every-pay')
+    .map(b=>({...b,next:new Date(),days:0,nextDueLabel:'Every pay day'}));
+
+  // Regular monthly bills sorted by days until due
+  let monthly=allBills.filter(b=>b.freq!=='quarterly'&&b.freq!=='every-pay'&&b.day>0)
+    .map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))}))
+    .sort((a,b)=>a.days-b.days);
+
+  // Quarterly bills at end
+  const quarterly=allBills.filter(b=>b.freq==='quarterly')
+    .map(b=>({...b,next:new Date(),days:0,nextDueLabel:'When due (quarterly)'}));
+
+  let list=[...everyPay,...monthly,...quarterly];
+
+  // Apply filters
+  if(billFilter==='paid') list=list.filter(b=>S.billData[b.id]?.paid);
+  else if(billFilter==='unpaid') list=list.filter(b=>!S.billData[b.id]?.paid&&!S.billData[b.id]?.paused);
+  else if(billFilter==='paused') list=list.filter(b=>S.billData[b.id]?.paused);
+  else if(billFilter==='bank') list=list.filter(b=>(b.type==='bank'||b.type==='bank-loc')&&!S.billData[b.id]?.paused);
+  else if(billFilter==='cc') list=list.filter(b=>b.type==='cc'&&!S.billData[b.id]?.paused);
+  else if(billFilter==='loc') list=list.filter(b=>(b.type==='loc'||b.type==='bank-loc')&&!S.billData[b.id]?.paused);
+  else list=list.filter(b=>!S.billData[b.id]?.paused);
+
+  document.getElementById('bills-list').innerHTML=list.map(b=>{
+    const bd=S.billData[b.id]||{};
+    const isPaid=!!bd.paid;
+    const isPaused=!!bd.paused;
+    const displayAmt=bd.actualAmt||b.amt;
+    const diff=bd.actualAmt&&b.amt?(bd.actualAmt-b.amt):0;
+    const nextDueStr=bd.nextDue||(b.nextDueLabel||(b.day?fmtDate(b.next):'Every pay day'));
+    const isExempt=LOC_BUFFER_BILLS.includes(b.id);
+    const isCustom=(S.customBills||[]).some(cb=>cb.id===b.id);
+
+    return `<div class="bill-wrap" ${isPaused?'style="opacity:.5"':''}>
+      <div class="bill-main" onclick="toggleBillDetail('${b.id}')">
+        <div style="flex:1;min-width:0">
+          <div class="rname">${b.name}${isPaused?` <span style="font-size:10px;color:var(--text3)">(Paused${bd.resumeDate?' · resumes '+bd.resumeDate:''})</span>`:''}</div>
+          <div class="rsub" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+            ${typeBadge(b.type)}
+            ${b.day||b.freq==='every-pay'?`<span>Next due: <strong>${nextDueStr}</strong></span>`:''}
+            ${isPaid?`<span class="paid-chip">✓ Paid ${bd.paidDate||''} via ${bd.paidFrom||''}</span>`:''}
+            ${diff>0&&!isExempt?`<span class="over-chip">Overage→envelope −${f2(diff)}</span>`:''}
+            ${diff>0&&isExempt?`<span class="over-chip">Overage→LOC +${f2(diff)}</span>`:''}
+            ${diff<0&&!isExempt?`<span style="background:var(--green-dim);color:var(--green);font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700">Underage→envelope +${f2(Math.abs(diff))}</span>`:''}
+            ${b.note?`<span style="font-size:10px;color:var(--text3)">${b.note}</span>`:''}
+          </div>
+        </div>
+        <div class="rright">
+          <span class="ramt">${b.amt?f2(displayAmt):'—'}</span>
+          ${!isPaused?`<button class="pay-btn ${isPaid?'paid':''}" onclick="event.stopPropagation();openPayBill('${b.id}')">${isPaid?'✓':'Pay'}</button>`:''}
+        </div>
+      </div>
+      <div class="bill-detail" id="bd-${b.id}">
+        <div class="bill-edit-grid">
+          <div><label>Next due date</label><input type="text" id="ndue-${b.id}" value="${nextDueStr}" placeholder="e.g. Jun 25"></div>
+          <div><label>Date paid</label><input type="text" id="pdate-${b.id}" value="${bd.paidDate||''}" placeholder="e.g. May 15"></div>
+        </div>
+        ${isPaused?`<div style="margin-bottom:8px"><label>Resume date</label><input type="text" id="rdate-${b.id}" value="${bd.resumeDate||''}" placeholder="e.g. Sep 1 2026"></div>`:''}
+        <div class="brow">
+          <button class="btn btn-gold btn-sm" onclick="saveBillDates('${b.id}')">Save dates</button>
+          <button class="btn btn-sm" onclick="event.stopPropagation();openBillEditor('${b.id}')">✏️ Edit bill</button>
+          ${isPaused
+            ?`<button class="btn btn-green btn-sm" onclick="unpauseBill('${b.id}')">▶ Resume</button>`
+            :`<button class="btn btn-sm" onclick="pauseBill('${b.id}')">⏸ Pause</button>`}
+          ${isPaid?`<button class="btn btn-red btn-sm" onclick="unpayBill('${b.id}')">Unmark paid</button>`:''}
+          ${isCustom?`<button class="btn btn-red btn-sm" onclick="document.getElementById('be-id').value='${b.id}';deleteBill()">🗑 Delete</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('')||'<p style="font-size:13px;color:var(--text3);padding:8px 0">No bills in this filter.</p>';
+}
 
 function renderBills(){
   // Every-pay bills shown at top
