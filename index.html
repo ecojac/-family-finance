@@ -1184,7 +1184,7 @@ function renderOverview(){
   envEl.className='mval '+(rem>effEnv*.3?'g':rem>0?'gold':'r');
 
   const regularBills=BILLS.filter(b=>b.freq!=='quarterly'&&b.day>0);
-  const upcoming=regularBills.map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))})).filter(b=>b.days<=14&&!S.billData[b.id]?.paid).sort((a,b)=>a.days-b.days);
+  const upcoming=regularBills.map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))})).filter(b=>b.days<=14&&!S.billData[b.id]?.paid&&!S.billData[b.id]?.paused).sort((a,b)=>a.days-b.days);
 
   document.getElementById('ov-bills').innerHTML=upcoming.length
     ?upcoming.map(b=>`<div class="row">
