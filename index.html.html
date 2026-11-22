@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Family Finance</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Mulish:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#F5F3EE; --surface:#FFF; --surface2:#EEF0F5; --surface3:#E4E6ED;
+  --border:rgba(0,0,0,0.09); --border2:rgba(0,0,0,0.14);
+  --text:#1C1B18; --text2:#4A4845; --text3:#7A7874;
+  --gold:#9B6F1E; --gold-dim:rgba(155,111,30,0.10);
+  --green:#1A6B3C; --green-dim:rgba(26,107,60,0.10);
+  --red:#B02A2A; --red-dim:rgba(176,42,42,0.09);
+  --blue:#1A4A8A; --blue-dim:rgba(26,74,138,0.09);
+  --orange:#9B4A10; --orange-dim:rgba(155,74,16,0.09);
+  --r:14px; --r-sm:9px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Mulish',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;font-size:16px}
+
+.header{background:#FFF;border-bottom:1px solid var(--border);padding:13px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.hbrand{display:flex;align-items:center;gap:10px}
+.hlogo{width:34px;height:34px;background:var(--gold);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:17px;color:#FFF}
+.htitle{font-family:'Playfair Display',serif;font-size:19px;font-weight:400}
+.hsub{font-size:11px;color:var(--text3);margin-top:1px}
+.hright{display:flex;align-items:center;gap:7px}
+.pay-pill{background:var(--gold-dim);border:1px solid rgba(155,111,30,.22);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--gold);text-align:right;line-height:1.4}
+.pay-pill strong{display:block;font-size:13px;font-weight:700}
+.icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);cursor:pointer;padding:7px;border-radius:9px;display:flex;align-items:center}
+.icon-btn svg{width:21px;height:21px;stroke-width:1.8}
+
+.bnav{position:fixed;bottom:0;left:0;right:0;background:#FFF;border-top:1.5px solid var(--border);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom,0);box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 4px 7px;cursor:pointer;border:none;background:transparent;color:var(--text3);font-family:'Mulish',sans-serif;font-size:10px;font-weight:500;transition:color .2s}
+.ni.active{color:var(--gold)}
+.ni svg{width:22px;height:22px;stroke-width:1.8}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
+.overlay.open{display:flex}
+.sheet{background:#FFF;border-radius:20px 20px 0 0;width:100%;max-width:600px;padding:0 20px calc(22px + env(safe-area-inset-bottom,0));animation:slideUp .25s ease;max-height:92dvh;overflow-y:auto;position:relative}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:13px auto 16px}
+.sheet-title{font-family:'Playfair Display',serif;font-size:21px;margin-bottom:14px}
+.sheet-close{position:absolute;right:18px;top:14px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+
+.main{max-width:600px;margin:0 auto;padding:18px 16px 96px}
+.panel{display:none;animation:fadeUp .2s ease}
+.panel.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+.stitle{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;margin-bottom:3px}
+.ssub{font-size:13px;color:var(--text2);margin-bottom:17px}
+
+.card{background:#FFF;border:1px solid var(--border);border-radius:var(--r);padding:15px 17px;margin-bottom:11px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.ctitle{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:13px}
+
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}
+.met{background:#FFF;border:1px solid var(--border);border-radius:var(--r-sm);padding:13px 15px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.mlabel{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:600}
+.mval{font-family:'Playfair Display',serif;font-size:24px;font-weight:400}
+.mval.g{color:var(--green)}.mval.r{color:var(--red)}.mval.gold{color:var(--gold)}
+
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
+.row:last-child{border-bottom:none}
+.rname{color:var(--text);font-weight:500}
+.rsub{font-size:11px;color:var(--text3);margin-top:2px}
+.rright{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ramt{font-weight:700;font-size:14px}
+.trow{display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding:11px 0 0;margin-top:3px;border-top:2px solid var(--border2)}
+
+.badge{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:700;white-space:nowrap}
+.b-loc{background:var(--blue-dim);color:var(--blue)}
+.b-cc{background:var(--orange-dim);color:var(--orange)}
+.b-bank{background:var(--surface2);color:var(--text2)}
+.b-due{background:var(--red-dim);color:var(--red)}
+.b-soon{background:var(--orange-dim);color:var(--orange)}
+.b-ok{background:var(--green-dim);color:var(--green)}
+
+.prog{height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;border:1px solid var(--border)}
+.pbar{height:100%;border-radius:5px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+
+.ins{border-left:4px solid;padding:11px 14px;margin-bottom:9px;border-radius:0 var(--r-sm) var(--r-sm) 0;font-size:13.5px;line-height:1.65}
+.ins.g{border-color:var(--green);background:#F0FAF4;color:#1A4A2A}
+.ins.w{border-color:#B06010;background:#FEF6EC;color:#7A3A08}
+.ins.r{border-color:var(--red);background:#FEF0F0;color:#7A1A1A}
+.ins.b{border-color:var(--blue);background:#EFF4FC;color:#1A3A6A}
+.ins.gold{border-color:var(--gold);background:#FEF8EC;color:#6A4A08}
+
+.btn{font-family:'Mulish',sans-serif;font-size:14px;font-weight:600;padding:10px 18px;border-radius:var(--r-sm);cursor:pointer;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text);transition:all .15s}
+.btn:active{transform:scale(.97)}
+.btn-gold{background:var(--gold);color:#FFF;border-color:var(--gold);font-weight:700}
+.btn-red{background:var(--red-dim);color:var(--red);border-color:transparent}
+.btn-green{background:var(--green-dim);color:var(--green);border-color:var(--green);font-weight:700}
+.btn-blue{background:var(--blue-dim);color:var(--blue);border-color:var(--blue);font-weight:700}
+.btn-sm{font-size:12px;padding:7px 14px}
+.btn-full{width:100%;text-align:center;margin-top:8px}
+.brow{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+
+input,select,textarea{font-family:'Mulish',sans-serif;font-size:15px;padding:10px 13px;border:1.5px solid var(--border2);border-radius:var(--r-sm);background:#FFF;color:var(--text);width:100%;appearance:none}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:var(--gold)}
+input::placeholder{color:var(--text3)}
+textarea{resize:vertical;min-height:48px}
+input[type=range]{padding:0;background:transparent;border:none;accent-color:var(--gold)}
+label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-weight:600}
+
+.src-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.src-grid-3{grid-template-columns:1fr 1fr 1fr}
+.src-btn{font-family:'Mulish',sans-serif;font-size:13px;font-weight:600;padding:11px 8px;border-radius:var(--r-sm);cursor:pointer;border:2px solid var(--border2);background:#FFF;color:var(--text2);text-align:center;transition:all .15s;line-height:1.4}
+.src-btn.selected{border-color:var(--gold);background:var(--gold-dim);color:var(--gold)}
+.src-btn .src-sub{font-size:10px;opacity:.7;margin-top:2px}
+
+.balcard{background:var(--surface2);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:9px;cursor:pointer;border:1.5px solid transparent;transition:all .15s}
+.balcard:hover{border-color:var(--gold)}
+.balcard.editing{border-color:var(--gold);background:#FEF9F0}
+.bclabel{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;font-weight:600}
+.bcrow{display:flex;justify-content:space-between;align-items:center}
+.bcval{font-family:'Playfair Display',serif;font-size:27px}
+.bchint{font-size:11px;color:var(--text3);margin-top:3px}
+.bcedit{display:none;grid-template-columns:1fr auto;gap:8px;margin-top:9px}
+.balcard.editing .bcedit{display:grid}
+
+.bill-wrap{border-bottom:1px solid var(--border)}
+.bill-wrap:last-child{border-bottom:none}
+.bill-main{display:flex;justify-content:space-between;align-items:center;padding:10px 0;font-size:14px;cursor:pointer}
+.bill-detail{display:none;padding:0 0 12px}
+.bill-detail.open{display:block}
+.bill-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.pay-btn{font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid var(--green);background:var(--green-dim);color:var(--green);cursor:pointer;font-family:'Mulish',sans-serif;font-weight:700;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.pay-btn.paid{background:var(--green);color:#FFF}
+.paid-chip{background:var(--green-dim);color:var(--green);font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700}
+.over-chip{background:var(--red-dim);color:var(--red);font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700}
+
+.sink-card{background:#FFF;border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.sink-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px}
+.sink-name{font-size:15px;font-weight:600}
+.sink-bal{font-family:'Playfair Display',serif;font-size:22px;color:var(--green)}
+.sink-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.sink-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid var(--border)}
+
+.ecat{background:var(--surface2);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:8px;border:1px solid var(--border)}
+.echead{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.ecname{font-size:14px;font-weight:600}
+.ecmeta{font-size:12px;color:var(--text2)}
+
+.cli{display:flex;align-items:flex-start;gap:11px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.cli:last-child{border-bottom:none}
+.cli.done{opacity:.4}
+.chkbox{width:24px;height:24px;border:2px solid var(--border2);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;transition:all .2s;background:#FFF}
+.cli.done .chkbox{background:var(--green);border-color:var(--green)}
+.chkicon{color:#fff;font-size:12px;display:none}
+.cli.done .chkicon{display:block}
+.chtitle{font-size:15px;font-weight:600}
+.cli.done .chtitle{text-decoration:line-through;color:var(--text3)}
+.chsub{font-size:12px;color:var(--text2);margin-top:2px;line-height:1.5}
+.chamt{font-size:13px;font-weight:700;color:var(--gold);white-space:nowrap;flex-shrink:0;margin-top:2px}
+
+.txn{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+.txn:last-child{border-bottom:none}
+.txn-desc{font-weight:500;font-size:14px}
+.txn-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.txn-amt.debit{color:var(--red);font-weight:700}
+.txn-amt.credit{color:var(--green);font-weight:700}
+
+.ftabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.ftab{font-size:12px;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border2);background:#FFF;color:var(--text2);cursor:pointer;font-family:'Mulish',sans-serif;font-weight:500}
+.ftab.active{background:var(--gold);color:#FFF;border-color:var(--gold);font-weight:700}
+
+.srow{display:flex;align-items:center;gap:12px}
+.slabel{font-size:13px;color:var(--text2);white-space:nowrap;flex-shrink:0}
+.sval{font-size:16px;font-weight:700;color:var(--gold);min-width:55px;text-align:right}
+
+.chat-wrap{display:flex;flex-direction:column;gap:9px;margin-bottom:12px;min-height:60px}
+.msg{max-width:90%;padding:10px 13px;border-radius:var(--r-sm);font-size:14px;line-height:1.6;animation:fadeUp .2s ease}
+.msg-user{background:#FEF8EC;border:1px solid rgba(155,111,30,.2);align-self:flex-end;border-radius:var(--r-sm) var(--r-sm) 4px var(--r-sm)}
+.msg-ai{background:var(--surface2);border:1px solid var(--border);align-self:flex-start;border-radius:var(--r-sm) var(--r-sm) var(--r-sm) 4px}
+.msg-thinking{color:var(--text3);font-style:italic}
+.cinput-row{display:flex;gap:8px;align-items:flex-end}
+.quickq{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.qq{font-size:12px;padding:6px 12px;border-radius:20px;background:#FFF;border:1.5px solid var(--border2);color:var(--text2);cursor:pointer;font-weight:500}
+.qq:active{border-color:var(--gold);color:var(--gold)}
+
+.hist-cycle{background:#FFF;border:1px solid var(--border);border-radius:var(--r-sm);padding:13px 15px;margin-bottom:9px}
+.hist-body{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.hist-body.open{display:block}
+.chwrap{position:relative;width:100%;height:200px;margin-bottom:8px}
+
+/* Pay day banner */
+.payday-banner{background:var(--green);color:#FFF;padding:14px 18px;display:none;align-items:center;justify-content:space-between;gap:10px}
+.payday-banner.show{display:flex}
+.payday-banner-text{font-size:14px;font-weight:600}
+.payday-banner-sub{font-size:12px;opacity:.8;margin-top:2px}
+
+.sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+.s-ok{background:var(--green)}.s-err{background:var(--red)}.s-pending{background:var(--gold);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(14px);background:var(--text);color:#FFF;padding:9px 20px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.divider{border:none;border-top:1px solid var(--border);margin:13px 0}
+@media(min-width:480px){.mgrid{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- PAY DAY BANNER -->
+<div class="payday-banner" id="payday-banner">
+  <div>
+    <div class="payday-banner-text">🎉 Pay day! Envelope has been reset.</div>
+    <div class="payday-banner-sub" id="banner-sub">Sink funds updated · $1,010.09 available</div>
+  </div>
+  <button class="btn btn-sm" style="background:rgba(255,255,255,.2);border-color:transparent;color:#FFF" onclick="document.getElementById('payday-banner').classList.remove('show')">Dismiss</button>
+</div>
+
+<header class="header">
+  <div class="hbrand">
+    <div class="hlogo">F</div>
+    <div>
+      <div class="htitle">Family Finance</div>
+      <div class="hsub" id="sync-status"><span class="sync-dot s-pending"></span>Connecting…</div>
+    </div>
+  </div>
+  <div class="hright">
+    <div class="pay-pill"><strong id="hdr-pay">—</strong>next pay</div>
+    <button class="icon-btn" onclick="openSettings()" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="modal-settings" onclick="if(event.target===this)closeModal('settings')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('settings')">✕</button>
+    <div class="sheet-title">Settings & balances</div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Tap any balance to override it manually. Changes sync to all devices immediately.</p>
+
+    <div class="balcard" id="bc-bank" onclick="toggleBal('bank')">
+      <div class="bclabel">Bank balance</div>
+      <div class="bcrow"><div class="bcval g" id="bv-bank">—</div><span style="font-size:17px;color:var(--text3)">✏️</span></div>
+      <div class="bchint">Override only if something is wrong — payments auto-track</div>
+      <div class="bcedit"><input type="number" id="bi-bank" placeholder="Correct balance" inputmode="decimal" onclick="event.stopPropagation()"><button class="btn btn-gold" onclick="event.stopPropagation();saveBal('bank')">Override</button></div>
+    </div>
+    <div class="balcard" id="bc-loc" onclick="toggleBal('loc')">
+      <div class="bclabel">LOC balance (4.65%)</div>
+      <div class="bcrow"><div class="bcval r" id="bv-loc">—</div><span style="font-size:17px;color:var(--text3)">✏️</span></div>
+      <div class="bchint">Override only if something is wrong</div>
+      <div class="bcedit"><input type="number" id="bi-loc" placeholder="Correct balance" inputmode="decimal" onclick="event.stopPropagation()"><button class="btn btn-gold" onclick="event.stopPropagation();saveBal('loc')">Override</button></div>
+    </div>
+    <div class="balcard" id="bc-cc" onclick="toggleBal('cc')">
+      <div class="bclabel">Credit card balance</div>
+      <div class="bcrow"><div class="bcval gold" id="bv-cc">—</div><span style="font-size:17px;color:var(--text3)">✏️</span></div>
+      <div class="bchint">Override only if something is wrong</div>
+      <div class="bcedit"><input type="number" id="bi-cc" placeholder="Correct balance" inputmode="decimal" onclick="event.stopPropagation()"><button class="btn btn-gold" onclick="event.stopPropagation();saveBal('cc')">Override</button></div>
+    </div>
+    <div class="balcard" id="bc-env" onclick="toggleBal('env')">
+      <div class="bclabel">Envelope budget / cycle</div>
+      <div class="bcrow"><div class="bcval" id="bv-env">—</div><span style="font-size:17px;color:var(--text3)">✏️</span></div>
+      <div class="bchint">Food $800 + Gas $50 + Surplus $160.09 = $1,010.09</div>
+      <div class="bcedit"><input type="number" id="bi-env" placeholder="1010.09" inputmode="decimal" onclick="event.stopPropagation()"><button class="btn btn-gold" onclick="event.stopPropagation();saveBal('env')">Save</button></div>
+    </div>
+    <div style="margin-top:13px;padding-top:12px;border-top:1px solid var(--border)">
+      <p style="font-size:12px;color:var(--text3);line-height:1.7">Income: $5,278.63/cycle · HELOC 4.65% · Surplus $320.17/mo · Envelope resets every other Thursday (Shawn's pay day)</p>
+    </div>
+  </div>
+</div>
+
+<!-- PAY BILL MODAL -->
+<div class="overlay" id="modal-paybill" onclick="if(event.target===this)closeModal('paybill')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('paybill')">✕</button>
+    <div class="sheet-title" id="pb-title">Pay bill</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px" id="pb-sub">—</p>
+    <div style="margin-bottom:12px">
+      <label>Actual amount ($)</label>
+      <input type="number" id="pb-amount" inputmode="decimal" oninput="previewDiff()">
+    </div>
+    <div id="pb-diff" style="display:none;margin-bottom:12px"></div>
+    <label style="margin-bottom:8px;display:block">Where is this paid from?</label>
+    <div class="src-grid src-grid-3" style="margin-bottom:8px">
+      <div class="src-btn" id="src-bank" onclick="selectSrc('bank')">🏦 Bank<div class="src-sub">Bank ↓</div></div>
+      <div class="src-btn" id="src-loc" onclick="selectSrc('loc')">📋 LOC<div class="src-sub">LOC ↑</div></div>
+      <div class="src-btn" id="src-cc" onclick="selectSrc('cc')">💳 CC<div class="src-sub">CC ↑</div></div>
+    </div>
+    <div class="src-grid" style="margin-bottom:14px">
+      <div class="src-btn" id="src-bank-loc" onclick="selectSrc('bank-loc')">Bank → LOC paydown<div class="src-sub">Bank ↓ · LOC ↓</div></div>
+      <div class="src-btn" id="src-bank-cc" onclick="selectSrc('bank-cc')">Bank → CC payoff<div class="src-sub">Bank ↓ · CC ↓</div></div>
+    </div>
+    <div class="bill-edit-grid" style="margin-bottom:14px">
+      <div><label>Date paid</label><input type="text" id="pb-date" placeholder="e.g. May 15"></div>
+      <div><label>Next due date</label><input type="text" id="pb-nextdue" placeholder="e.g. Jun 15"></div>
+    </div>
+    <input type="hidden" id="pb-id">
+    <button class="btn btn-gold btn-full" onclick="confirmPay()">Confirm payment</button>
+  </div>
+</div>
+
+<!-- ADD CREDIT MODAL -->
+<div class="overlay" id="modal-credit" onclick="if(event.target===this)closeModal('credit')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('credit')">✕</button>
+    <div class="sheet-title">Add money to bank</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Tax return, reimbursement, gift, or any other credit to your bank account.</p>
+    <div style="margin-bottom:12px"><label>Amount ($)</label><input type="number" id="cr-amount" placeholder="0.00" inputmode="decimal"></div>
+    <div style="margin-bottom:14px"><label>Description</label><input type="text" id="cr-desc" placeholder="e.g. Tax return, Reimbursement from work"></div>
+    <button class="btn btn-gold btn-full" onclick="confirmCredit()">Add to bank balance</button>
+  </div>
+</div>
+
+<!-- SINK FUND MODALS -->
+<div class="overlay" id="modal-sink" onclick="if(event.target===this)closeModal('sink')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('sink')">✕</button>
+    <div class="sheet-title" id="sink-title">Add sink fund</div>
+    <div style="margin-bottom:10px"><label>Name</label><input type="text" id="sink-name" placeholder="e.g. Car maintenance"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px">
+      <div><label>Save per cycle ($)</label><input type="number" id="sink-per" placeholder="65.73" inputmode="decimal"></div>
+      <div><label>Current balance ($)</label><input type="number" id="sink-bal" placeholder="0.00" inputmode="decimal"></div>
+    </div>
+    <div style="margin-bottom:14px"><label>Notes</label><input type="text" id="sink-notes" placeholder="e.g. Every 8 weeks"></div>
+    <input type="hidden" id="sink-edit-id">
+    <button class="btn btn-gold btn-full" onclick="saveSink()">Save sink fund</button>
+  </div>
+</div>
+
+<div class="overlay" id="modal-sink-spend" onclick="if(event.target===this)closeModal('sink-spend')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('sink-spend')">✕</button>
+    <div class="sheet-title" id="ss-title">Log spend</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px" id="ss-sub">—</p>
+    <div style="margin-bottom:10px"><label>Amount ($)</label><input type="number" id="ss-amt" placeholder="0.00" inputmode="decimal"></div>
+    <div style="margin-bottom:10px"><label>Paid with</label>
+      <div class="src-grid src-grid-3" style="margin-top:6px">
+        <div class="src-btn" id="ss-src-bank" onclick="selectSsSrc('bank')">🏦 Bank<div class="src-sub">Bank ↓</div></div>
+        <div class="src-btn" id="ss-src-cc" onclick="selectSsSrc('cc')">💳 CC<div class="src-sub">CC ↑</div></div>
+        <div class="src-btn" id="ss-src-loc" onclick="selectSsSrc('loc')">📋 LOC<div class="src-sub">LOC ↑</div></div>
+      </div>
+    </div>
+    <div style="margin-bottom:14px"><label>Note</label><input type="text" id="ss-note" placeholder="e.g. Pet food at Costco"></div>
+    <input type="hidden" id="ss-id">
+    <button class="btn btn-gold btn-full" onclick="saveSinkSpend()">Log spend</button>
+  </div>
+</div>
+
+<!-- ADD / EDIT BILL MODAL -->
+<div class="overlay" id="modal-bill-editor" onclick="if(event.target===this)closeModal('bill-editor')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeModal('bill-editor')">✕</button>
+    <div class="sheet-title" id="bill-editor-title">Add bill</div>
+    <div style="margin-bottom:10px"><label>Bill name</label><input type="text" id="be-name" placeholder="e.g. Netflix, Gym membership"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px">
+      <div><label>Amount ($)</label><input type="number" id="be-amt" placeholder="0.00" inputmode="decimal"></div>
+      <div><label>Due day of month</label><input type="number" id="be-day" placeholder="1–31 (0 = every pay)" inputmode="numeric" min="0" max="31"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px">
+      <div>
+        <label>Payment type</label>
+        <select id="be-type">
+          <option value="cc">💳 Credit card (CC ↑)</option>
+          <option value="bank">🏦 Bank (Bank ↓)</option>
+          <option value="loc">📋 LOC (LOC ↑)</option>
+          <option value="bank-loc">Bank → LOC (both ↓)</option>
+          <option value="bank-cc">Bank → CC (both ↓)</option>
+        </select>
+      </div>
+      <div>
+        <label>Frequency</label>
+        <select id="be-freq">
+          <option value="monthly">Monthly</option>
+          <option value="every-pay">Every pay day</option>
+          <option value="quarterly">Quarterly</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:14px"><label>Notes (optional)</label><input type="text" id="be-notes" placeholder="e.g. Auto-debit, not from envelope"></div>
+    <input type="hidden" id="be-id">
+    <button class="btn btn-gold btn-full" onclick="saveBillEditor()">Save bill</button>
+    <div id="be-delete-wrap" style="display:none;margin-top:8px">
+      <button class="btn btn-red btn-full" onclick="deleteBill()">Delete this bill</button>
+    </div>
+  </div>
+</div>
+
+<main class="main">
+
+<!-- OVERVIEW -->
+<div id="panel-overview" class="panel active">
+  <div class="mgrid">
+    <div class="met"><div class="mlabel">Bank</div><div class="mval g" id="ov-bank">—</div></div>
+    <div class="met"><div class="mlabel">LOC</div><div class="mval r" id="ov-loc">—</div></div>
+    <div class="met"><div class="mlabel">CC balance</div><div class="mval gold" id="ov-cc">—</div></div>
+    <div class="met"><div class="mlabel">Envelope left</div><div class="mval" id="ov-env">—</div></div>
+  </div>
+
+  <!-- CASH REMAINING CARD -->
+  <div class="card" id="cash-remaining-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div>
+        <div class="ctitle" style="margin-bottom:2px">Cash remaining</div>
+        <div style="font-size:11px;color:var(--text3)">Bank minus upcoming bills & reserved sink funds</div>
+      </div>
+      <div class="mval g" id="cr-amount" style="font-size:28px">—</div>
+    </div>
+    <div class="prog" style="margin:10px 0 8px"><div class="pbar" id="cr-bar" style="width:0%;background:var(--green)"></div></div>
+    <button class="btn btn-sm" style="font-size:11px;padding:5px 12px" onclick="toggleCashBreakdown()">Show breakdown ▾</button>
+    <div id="cr-breakdown" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div class="row" style="padding:6px 0"><span style="color:var(--text2)">Current bank balance</span><span class="ramt g" id="cr-bank">—</span></div>
+      <div id="cr-bills-list"></div>
+      <div id="cr-sink-list"></div>
+      <div class="trow" style="margin-top:4px"><span>Cash remaining</span><span class="ramt g" id="cr-total">—</span></div>
+    </div>
+  </div>
+
+  <div class="brow" style="margin-bottom:14px">
+    <button class="btn btn-green btn-sm" onclick="openModal('credit')">+ Add money to bank</button>
+    <button class="btn btn-blue btn-sm" onclick="openQuickPayCC()">Pay CC balance</button>
+    <button class="btn btn-sm" onclick="openQuickPayLOC()">Pay down LOC</button>
+  </div>
+  <div class="card">
+    <div class="ctitle">Next pay days</div>
+    <div class="row"><div><div class="rname">Shawn</div><div class="rsub">$2,649.31 biweekly · envelope resets on his pay</div></div><span class="ramt gold" id="ov-shawn">—</span></div>
+    <div class="row"><div><div class="rname">Jaclyn</div><div class="rsub">$2,629.32 biweekly</div></div><span class="ramt gold" id="ov-jaclyn">—</span></div>
+  </div>
+  <div class="card"><div class="ctitle">Bills due — next 14 days</div><div id="ov-bills">—</div></div>
+  <div id="ov-insights"></div>
+</div>
+
+<!-- PAY DAY -->
+<div id="panel-checklist" class="panel">
+  <div class="stitle">Pay day</div>
+  <div class="ssub">Every other Thursday — Shawn's pay day</div>
+  <div class="mgrid" style="margin-bottom:12px">
+    <div class="met"><div class="mlabel">Combined income</div><div class="mval g">$5,279</div></div>
+    <div class="met"><div class="mlabel">Steps done</div><div class="mval gold" id="cl-prog">0 / 8</div></div>
+  </div>
+  <div class="card"><div class="ctitle">Step 1 — Accounts</div><div id="cl-accounts"></div></div>
+  <div class="card"><div class="ctitle">Step 2 — Pay bills</div><div id="cl-bills"></div></div>
+  <div class="card"><div class="ctitle">Step 3 — LOC & savings</div><div id="cl-loc"></div></div>
+  <div class="card"><div class="ctitle">Step 4 — Check in</div><div id="cl-checkin"></div></div>
+  <div class="brow"><button class="btn btn-red btn-sm" onclick="resetChecklist()">Reset checklist</button></div>
+</div>
+
+<!-- ENVELOPE -->
+<div id="panel-envelope" class="panel">
+  <div class="stitle">Envelope</div>
+  <div class="ssub">Food $800 · Gas $50 · Buffer $160 — resets every other Thursday</div>
+  <div class="mgrid">
+    <div class="met"><div class="mlabel">Budget</div><div class="mval" id="env-bud">—</div></div>
+    <div class="met"><div class="mlabel">Spent</div><div class="mval gold" id="env-spent">$0</div></div>
+    <div class="met"><div class="mlabel">Remaining</div><div class="mval" id="env-rem">—</div></div>
+    <div class="met"><div class="mlabel">Used</div><div class="mval" id="env-pct">0%</div></div>
+  </div>
+  <div class="prog" style="height:14px;margin-bottom:5px"><div class="pbar" id="env-bar" style="width:0%"></div></div>
+  <p style="font-size:12px;color:var(--text2);margin-bottom:15px" id="env-msg">—</p>
+  <div id="env-cats"></div>
+  <div class="card">
+    <div class="ctitle">Log a spend</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px">
+      <div><label>Category</label>
+        <select id="log-cat">
+          <option value="food">🛒 Food & groceries</option>
+          <option value="gas">⛽ Shawn gas</option>
+          <option value="kids">🏀 Kids / activities</option>
+          <option value="misc">🛍 Misc / clothing</option>
+        </select>
+      </div>
+      <div><label>Amount ($)</label><input type="number" id="log-amt" placeholder="0.00" inputmode="decimal"></div>
+    </div>
+    <div style="margin-bottom:9px">
+      <label>Paid with</label>
+      <div class="src-grid" style="margin-top:5px;grid-template-columns:1fr 1fr 1fr 1fr">
+        <div class="src-btn selected" id="env-src-cc" onclick="selectEnvSrc('cc')">💳 CC<div class="src-sub">CC ↑</div></div>
+        <div class="src-btn" id="env-src-bank" onclick="selectEnvSrc('bank')">🏦 Bank<div class="src-sub">Bank ↓</div></div>
+        <div class="src-btn" id="env-src-loc" onclick="selectEnvSrc('loc')">📋 LOC<div class="src-sub">LOC ↑</div></div>
+        <div class="src-btn" id="env-src-none" onclick="selectEnvSrc('none')">💵 Cash<div class="src-sub">No change</div></div>
+      </div>
+    </div>
+    <label>Note (optional)</label>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+      <input type="text" id="log-note" placeholder="e.g. Loblaws">
+      <button class="btn btn-gold" onclick="logSpend()">Add</button>
+    </div>
+  </div>
+  <div class="card" id="log-hist" style="display:none">
+    <div class="ctitle">This cycle's log</div>
+    <div id="log-list"></div>
+  </div>
+  <div class="ins w" style="margin-top:4px">⚠️ Reset only clears spending log. Balances, bill dates and history are never affected.</div>
+  <div class="brow">
+    <button class="btn btn-red btn-sm" onclick="manualResetEnvelope()">New cycle — reset envelope</button>
+  </div>
+</div>
+
+<!-- LOC & BILLS -->
+<div id="panel-loc" class="panel">
+  <div class="stitle">LOC & Bills</div>
+  <div class="mgrid" style="margin-bottom:11px">
+    <div class="met"><div class="mlabel">LOC balance</div><div class="mval r" id="loc-bal">—</div></div>
+    <div class="met"><div class="mlabel">Monthly interest</div><div class="mval gold" id="loc-int">—</div></div>
+  </div>
+  <div class="ins b">💡 LOC = ~$36k Shawn's car + ~$16k basketball school. The $580/cycle transfer reduces this balance. At 4.65% you pay ~$203/month in interest.</div>
+  <div class="card">
+    <div class="ctitle">Paydown simulator</div>
+    <div class="srow" style="margin-bottom:12px">
+      <span class="slabel">Extra / month</span>
+      <input type="range" min="0" max="1500" step="50" value="300" id="loc-sl" oninput="updateLocSim()">
+      <span class="sval" id="loc-sl-val">$300</span>
+    </div>
+    <div class="mgrid" style="margin-bottom:0">
+      <div class="met"><div class="mlabel">Balance in 1 yr</div><div class="mval" id="sim-1yr">—</div></div>
+      <div class="met"><div class="mlabel">Payoff timeline</div><div class="mval g" id="sim-pay">—</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ctitle">12-month projection</div>
+    <div class="chwrap"><canvas id="loc-chart"></canvas></div>
+    <div style="display:flex;gap:14px;font-size:11px;color:var(--text2)">
+      <span><span style="display:inline-block;width:10px;height:2px;background:var(--red);margin-right:4px;vertical-align:middle"></span>No extra</span>
+      <span><span style="display:inline-block;width:10px;height:2px;background:var(--green);margin-right:4px;vertical-align:middle"></span>With extra</span>
+    </div>
+  </div>
+  <hr class="divider">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:11px">
+    <div style="font-size:15px;font-weight:600">All bills</div>
+    <button class="btn btn-sm btn-gold" onclick="openBillEditor()">+ Add bill</button>
+  </div>
+  <div class="ftabs">
+    <button class="ftab active" onclick="filterBills('all',this)">All</button>
+    <button class="ftab" onclick="filterBills('bank',this)">Bank</button>
+    <button class="ftab" onclick="filterBills('cc',this)">CC</button>
+    <button class="ftab" onclick="filterBills('loc',this)">LOC</button>
+    <button class="ftab" onclick="filterBills('paid',this)">Paid ✓</button>
+    <button class="ftab" onclick="filterBills('unpaid',this)">Unpaid</button>
+    <button class="ftab" onclick="filterBills('paused',this)">Paused</button>
+  </div>
+  <div class="card" style="padding:11px 17px"><div id="bills-list"></div></div>
+  <hr class="divider">
+  <div style="font-size:15px;font-weight:600;margin-bottom:4px">Sink funds</div>
+  <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Irregular expenses — balance rolls forward each cycle. Auto-contributed on pay day.</p>
+  <div id="sink-list"></div>
+  <div class="brow"><button class="btn btn-sm" onclick="openAddSink()">+ Add sink fund</button></div>
+</div>
+
+<!-- HISTORY -->
+<div id="panel-history" class="panel">
+  <div class="stitle">History</div>
+  <div class="ftabs">
+    <button class="ftab active" onclick="showHistTab('txn',this)">Transactions</button>
+    <button class="ftab" onclick="showHistTab('cycles',this)">Cycles</button>
+    <button class="ftab" onclick="showHistTab('charts',this)">Charts</button>
+  </div>
+  <div id="htab-txn">
+    <div class="card" style="padding:11px 17px"><div id="txn-list"><p style="font-size:13px;color:var(--text3);padding:8px 0">No transactions yet.</p></div></div>
+  </div>
+  <div id="htab-cycles" style="display:none"><div id="cycle-list"><p style="font-size:13px;color:var(--text3);text-align:center;padding:20px 0">Complete your first cycle to see history.</p></div></div>
+  <div id="htab-charts" style="display:none">
+    <div class="card"><div class="ctitle">LOC balance over time</div><div class="chwrap"><canvas id="hist-loc-chart"></canvas></div></div>
+    <div class="card"><div class="ctitle">Envelope by category</div><div class="chwrap"><canvas id="hist-env-chart"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ASSISTANT -->
+<div id="panel-ai" class="panel">
+  <div class="stitle">Assistant</div>
+  <div class="ssub">Ask anything about your finances</div>
+  <div class="quickq">
+    <span class="qq" onclick="askQ(this)">What do I need to pay this week?</span>
+    <span class="qq" onclick="askQ(this)">How is our LOC tracking?</span>
+    <span class="qq" onclick="askQ(this)">How much is left in the envelope?</span>
+    <span class="qq" onclick="askQ(this)">Are we on budget this cycle?</span>
+    <span class="qq" onclick="askQ(this)">What's our debt payoff timeline?</span>
+    <span class="qq" onclick="askQ(this)">How much have we spent on food this cycle?</span>
+  </div>
+  <div class="card" style="padding:13px">
+    <div class="chat-wrap" id="chat-wrap">
+      <div class="msg msg-ai">Hi! I'm your family finance assistant. I know your full financial picture — ask me anything.</div>
+    </div>
+    <div class="cinput-row">
+      <textarea id="chat-input" placeholder="Ask a question…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+      <button class="btn btn-gold" onclick="sendChat()" style="padding:10px 15px;flex-shrink:0">→</button>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<nav class="bnav">
+  <button class="ni active" onclick="showPanel('overview',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Overview
+  </button>
+  <button class="ni" onclick="showPanel('checklist',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    Pay day
+  </button>
+  <button class="ni" onclick="showPanel('envelope',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2"/><polyline points="2,5 12,13 22,5"/></svg>
+    Envelope
+  </button>
+  <button class="ni" onclick="showPanel('loc',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+    LOC & Bills
+  </button>
+  <button class="ni" onclick="showPanel('history',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    History
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════ CONFIG ═══════════
+const SUPABASE_URL = 'https://vqcysaxjccghtjakmori.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxY3lzYXhqY2NnaHRqYWttb3JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyOTk2MDAsImV4cCI6MjA5Mzg3NTYwMH0.UzwG_52Y4pDjlflNmjry6UMiVmQsj6GaOEfWa_uz1ig';
+
+// ═══════════ CONSTANTS ═══════════
+const JACLYN_BASE = new Date(2026,4,1);  // May 1 2026
+const SHAWN_BASE  = new Date(2026,4,1);  // May 1 2026 — Shawn's May 1 was Thursday
+// Shawn pays every 2 weeks Thursday. Last pay was around Apr 30/May 1
+// Next: May 15, May 29, Jun 12...
+const SHAWN_PAY_BASE = new Date(2026,4,15); // May 15 next Thursday pay
+const LOC_RATE = 0.0465;
+const DEFAULT_ENV = 1010.09;
+
+// Bills that NEVER reduce envelope even if over budget (Water & Property Tax go to LOC buffer)
+const LOC_BUFFER_BILLS = ['b22','b23']; // b22=Property Tax→LOC, b23=Water→LOC
+
+// Bills — complete list with CORRECT amounts
+// Monthly bills = paid once per month (full amount)
+// Every-pay bills = paid each biweekly cycle
+const BILLS = [
+  // 1st of month
+  {id:'b01',name:'Unicef',                    amt:25,      day:1,  type:'cc',   freq:'monthly'},
+  {id:'b02',name:'Abilities Centre',          amt:142.38,  day:1,  type:'cc',   freq:'monthly'},
+  {id:'b03',name:'Jaclyn car payment',        amt:336.04,  day:1,  type:'bank', freq:'every-pay', note:'Every pay — auto-debit $336.04'},
+  {id:'b04',name:'Presto transit',            amt:200,     day:1,  type:'cc',   freq:'every-pay', note:'Every pay — fixed, not from envelope'},
+  // 5th
+  {id:'b05',name:'407 ETR',                   amt:125,     day:5,  type:'cc',   freq:'monthly'},
+  {id:'b06',name:'Enbridge gas',               amt:125,     day:5,  type:'bank', freq:'monthly'},
+  // 14th
+  {id:'b07',name:'Telus Internet',            amt:89.27,   day:14, type:'cc',   freq:'monthly'},
+  // 15th
+  {id:'b08',name:'Jaclyn Life Insurance',     amt:34.74,   day:15, type:'bank', freq:'monthly'},
+  {id:'b09',name:'Reliance water heater',     amt:100,     day:15, type:'cc',   freq:'monthly'},
+  {id:'b10',name:'Feed the Need',             amt:31.40,   day:15, type:'cc',   freq:'monthly'},
+  {id:'b11',name:'Shawn Car → LOC',           amt:580,     day:15, type:'bank-loc', freq:'monthly', note:'Monthly — bank ↓ and LOC ↓'},
+  {id:'b12',name:'TD Transfer → LOC',         amt:110,     day:15, type:'bank-loc', freq:'monthly', note:'Monthly — covers LOC interest, bank ↓ and LOC ↓'},
+  // 16th
+  {id:'b13',name:'Mortgage',                  amt:3600,    day:16, type:'bank', freq:'monthly'},
+  // 19th
+  {id:'b14',name:'House Insurance',           amt:151.23,  day:19, type:'bank', freq:'monthly'},
+  {id:'b15',name:'Car Insurance',             amt:390,     day:19, type:'bank', freq:'monthly'},
+  // 21st
+  {id:'b16',name:'Rogers Cell Phones',        amt:160,     day:21, type:'cc',   freq:'monthly'},
+  // 23rd/24th/25th
+  {id:'b17',name:'Apple subscription',        amt:16.94,   day:23, type:'cc',   freq:'monthly'},
+  {id:'b18',name:'Apple iCloud',              amt:5.00,    day:24, type:'cc',   freq:'monthly'},
+  {id:'b19',name:'Toyota subscription',       amt:11.24,   day:25, type:'cc',   freq:'monthly'},
+  {id:'b20',name:'Oshawa Power',               amt:145.61,  day:25, type:'bank', freq:'monthly'},
+  // 30th
+  {id:'b21',name:'Jaclyn & Chase Equitable',  amt:432.94,  day:30, type:'bank', freq:'monthly'},
+  {id:'b22',name:'Property Tax → LOC',        amt:650,     day:30, type:'loc',  freq:'monthly', note:'Accumulates in LOC — not from envelope'},
+  {id:'b23',name:'Water → LOC',               amt:160,     day:30, type:'loc',  freq:'monthly', note:'Accumulates in LOC — not from envelope'},
+  // Quarterly
+  {id:'b24',name:'Property Tax actual bill',  amt:1928,    day:1,  type:'loc',  freq:'quarterly', note:'Paid from LOC when due every 3 months'},
+  {id:'b27',name:'Water actual bill',          amt:350.56,  day:10, type:'loc',  freq:'quarterly', note:'Paid from LOC — next due Aug 10'},
+  // Every pay
+  {id:'b25',name:'Credit card payoff',        amt:0,       day:0,  type:'bank', freq:'every-pay', note:'Pay full CC balance every pay day'},
+  {id:'b26',name:'Spending money (cash)',      amt:150,     day:0,  type:'bank', freq:'every-pay', note:'$75 each — coffee, lunch at work'},
+];
+
+const ENV_CATS = {
+  food:{label:'Food & groceries', color:'#1A6B3C', emoji:'🛒', pct:.79},  // 800/1010
+  gas: {label:'Shawn gas',        color:'#1A4A8A', emoji:'⛽', pct:.05},  // 50/1010
+  kids:{label:'Kids / activities', color:'#6D28D9', emoji:'🏀', pct:.08},
+  misc:{label:'Misc / clothing',   color:'#9B4A10', emoji:'🛍', pct:.08},
+};
+
+const CHECKLIST = [
+  {id:'c1',group:'accounts',title:'Confirm pay was added to bank',sub:'Overview → bank balance should be up by $5,278.63 — if not, tap "+ Add money to bank"',amt:'$5,278.63'},
+  {id:'c2',group:'accounts',title:'Check bank balance is accurate',sub:'Confirm the balance shown matches your TD account',amt:''},
+  {id:'c3',group:'bills',title:'Pay credit card in full',sub:'Overview → "Pay CC balance" → confirm Bank→CC payoff',amt:'Full CC balance'},
+  {id:'c4',group:'bills',title:'Pay Shawn car → LOC',sub:'LOC & Bills → Shawn Car → Pay → Bank→LOC paydown',amt:'$580'},
+  {id:'c5',group:'bills',title:'TD Transfer → LOC',sub:'LOC & Bills → TD Transfer → Pay → Bank→LOC paydown',amt:'$110'},
+  {id:'c6',group:'bills',title:'Check all other bills due this cycle',sub:'LOC & Bills → filter Unpaid → mark each one paid',amt:''},
+  {id:'c7',group:'loc',title:'Add cycle to sink funds',sub:'LOC & Bills → Sink funds → tap "+ Add cycle" for each fund',amt:''},
+  {id:'c8',group:'checkin',title:'Check envelope & cash remaining',sub:'How did last cycle go? Review Overview → Cash Remaining',amt:''},
+];
+
+// ═══════════ STATE ═══════════
+let db = null;
+let S = {
+  bank: 0,
+  loc:  0,
+  cc:   0,
+  envelope: DEFAULT_ENV,
+  envSpent: {food:0, gas:0, kids:0, misc:0},
+  envLog: [],
+  checkDone: {},
+  billData: {},
+  billOverrides: {},  // {billId: {name, amt, day, type, freq, note}} overrides for built-in bills
+  customBills: [],    // [{id, name, amt, day, type, freq, note}] user-added bills
+  sinkFunds: [
+    {id:'sf_pets',  name:'Pets',             perCycle:65.73, balance:0, notes:'Food & supplies every 8 weeks — paid on CC'},
+    {id:'sf_car',   name:'Car maintenance',  perCycle:60,    balance:0, notes:'Oil changes, tires, repairs'},
+    {id:'sf_gifts', name:'Gifts & occasions',perCycle:50,    balance:0, notes:'Birthdays, Christmas, celebrations'},
+    {id:'sf_home',  name:'Home repairs',     perCycle:50,    balance:0, notes:'Unexpected house expenses'},
+  ],
+  lastPaydayReset: null,
+  cycleStart: new Date().toISOString().split('T')[0],
+};
+let txnHistory = [];
+let cycleHistory = [];
+let selectedSrc = null;
+let selectedSsSrc = null;
+let currentBillId = null;
+let histCharts = {};
+
+// ═══════════ SUPABASE ═══════════
+async function initDB(){
+  try{
+    db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:false,autoRefreshToken:false}});
+    await loadFromDB();
+    checkPayday();
+    setSyncStatus('ok','Synced ✓');
+  } catch(e){
+    setSyncStatus('err','Sync error — check connection');
+    console.error(e);
+    checkPayday();
+  }
+}
+
+function setSyncStatus(state,msg){
+  const dot=state==='ok'?'s-ok':state==='err'?'s-err':'s-pending';
+  document.getElementById('sync-status').innerHTML=`<span class="sync-dot ${dot}"></span>${msg}`;
+}
+
+async function loadFromDB(){
+  if(!db) return;
+  setSyncStatus('pending','Loading…');
+  try{
+    const {data:st} = await db.from('app_state').select('*').eq('id',1).single();
+    if(st?.state_json) S={...S,...JSON.parse(st.state_json)};
+    // Enbridge and Oshawa Power are paid from the bank. Fix any older saved edits.
+    ['b06','b20'].forEach(id=>{
+      const ov=S.billOverrides&&S.billOverrides[id];
+      if(ov){ if(ov.type==='loc') ov.type='bank'; if(ov.name) ov.name=ov.name.replace(/\s*→\s*LOC/,''); }
+    });
+    const {data:txns} = await db.from('transactions').select('*').order('created_at',{ascending:false}).limit(150);
+    txnHistory=txns||[];
+    const {data:cyc} = await db.from('cycles').select('*').order('cycle_start',{ascending:false}).limit(26);
+    cycleHistory=cyc||[];
+    renderAll();
+    setSyncStatus('ok','Synced ✓');
+  } catch(e){
+    setSyncStatus('err','Load error');
+    console.error(e);
+  }
+}
+
+async function saveToDB(msg){
+  if(!db){if(msg)toast(msg);return;}
+  setSyncStatus('pending','Saving…');
+  try{
+    await db.from('app_state').upsert({id:1,state_json:JSON.stringify(S),updated_at:new Date().toISOString()});
+    setSyncStatus('ok','Synced ✓');
+    if(msg) toast(msg);
+  } catch(e){
+    setSyncStatus('err','Save error');
+    console.error(e);
+    if(msg) toast(msg+' (sync failed — check connection)');
+  }
+}
+
+async function logTxn(desc,amount,type,account,note=''){
+  const txn={description:desc,amount:Math.abs(amount),type,account,note,
+    created_at:new Date().toISOString(),
+    date_display:new Date().toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})};
+  txnHistory.unshift(txn);
+  if(db){try{await db.from('transactions').insert(txn);}catch(e){console.error(e);}}
+  renderTxnList();
+}
+
+// ═══════════ PAY DAY AUTO-RESET ═══════════
+function getNextShawnPay(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  // Shawn pays every 2 weeks on Thursday. Base: May 15 2026
+  const base=new Date(2026,4,15);
+  let i=0;
+  while(true){
+    const d=new Date(base.getTime()+i*14*86400000);
+    if(d>=today) return d;
+    i++;
+  }
+}
+
+function isPayday(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const next=getNextShawnPay();
+  return today.getTime()===next.getTime();
+}
+
+function checkPayday(){
+  const today=new Date().toISOString().split('T')[0];
+  // Trigger reset if today IS pay day OR if we've missed a pay day since last reset
+  const lastReset=S.lastPaydayReset?new Date(S.lastPaydayReset):new Date(0);
+  const shawnNext=getNextShawnPay();
+  // Find the most recent pay day (could be today or in the past)
+  const todayDate=new Date(); todayDate.setHours(0,0,0,0);
+  // Walk back from next pay to find last pay day
+  const lastPayDay=new Date(shawnNext.getTime()-14*86400000);
+  // If last pay day is after our last reset, we need to reset
+  if(lastPayDay>lastReset && todayDate>=lastPayDay && S.lastPaydayReset!==lastPayDay.toISOString().split('T')[0]){
+    doPaydayReset(lastPayDay.toISOString().split('T')[0]);
+  } else if(todayDate.toISOString().split('T')[0]===shawnNext.toISOString().split('T')[0] && S.lastPaydayReset!==today){
+    doPaydayReset(today);
+  }
+}
+
+async function doPaydayReset(today){
+  // Save current cycle first
+  const spent=Object.values(S.envSpent).reduce((a,b)=>a+b,0);
+  if(db && S.cycleStart){
+    try{
+      await db.from('cycles').upsert({
+        cycle_start:S.cycleStart,
+        bank_balance:S.bank, loc_balance:S.loc, cc_balance:S.cc,
+        envelope_budget:S.envelope, envelope_spent:spent,
+        food_spent:S.envSpent.food||0, gas_spent:S.envSpent.gas||0,
+        kids_spent:S.envSpent.kids||0, misc_spent:S.envSpent.misc||0,
+        saved_at:new Date().toISOString()
+      });
+    }catch(e){console.error(e);}
+  }
+
+  // Auto-contribute sink funds
+  const contributed=[];
+  (S.sinkFunds||[]).forEach(sf=>{
+    sf.balance=(sf.balance||0)+sf.perCycle;
+    contributed.push(`${sf.name} +${f2(sf.perCycle)}`);
+  });
+
+  // Auto-add combined pay to bank
+  const combinedPay = 5278.63;
+  S.bank = S.bank + combinedPay;
+  await logTxn('Combined pay — Shawn & Jaclyn', combinedPay, 'credit', 'bank', 'Auto-added on pay day reset');
+
+  // Reset envelope spending log
+  S.envSpent={food:0,gas:0,kids:0,misc:0};
+  S.envLog=[];
+  S.checkDone={};
+  S.lastPaydayReset=today;
+  S.cycleStart=today;
+
+  // Reset bill PAID status for new cycle — keep nextDue, paused, resumeDate
+  // Every-pay bills and monthly bills all reset so they can be paid again
+  Object.keys(S.billData).forEach(id=>{
+    const bd=S.billData[id];
+    if(bd.paid){
+      bd.paid=false;
+      delete bd.paidDate;
+      delete bd.paidFrom;
+      delete bd.actualAmt;
+      // Keep: nextDue, paused, resumeDate
+    }
+  });
+
+  await saveToDB();
+
+  // Show banner
+  const banner=document.getElementById('payday-banner');
+  document.getElementById('banner-sub').textContent=`$5,278.63 added to bank · Sink funds updated (${contributed.join(', ')}) · ${f2(S.envelope)} envelope available`;
+  banner.classList.add('show');
+
+  renderAll();
+}
+
+// ═══════════ UTILS ═══════════
+function fmt(n,d=0){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function f2(n){return fmt(n,2);}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800);}
+function nextOcc(day){if(!day)return new Date();const t=new Date();t.setHours(0,0,0,0);let d=new Date(t.getFullYear(),t.getMonth(),day);if(d<t)d=new Date(t.getFullYear(),t.getMonth()+1,day);return d;}
+function parseDue(str){
+  if(!str) return null;
+  const m=String(str).trim().match(/^([A-Za-z]{3,9})\.?\s+(\d{1,2})/);
+  if(!m) return null;
+  const mon=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(m[1].slice(0,3).toLowerCase());
+  if(mon<0) return null;
+  const t=new Date();t.setHours(0,0,0,0);
+  let best=null;
+  [t.getFullYear()-1,t.getFullYear(),t.getFullYear()+1].forEach(y=>{
+    const d=new Date(y,mon,+m[2]);
+    if(!best||Math.abs(d-t)<Math.abs(best-t)) best=d;
+  });
+  return best;
+}
+function addOneMonth(d){
+  const y=d.getFullYear(), mo=d.getMonth()+1;
+  const last=new Date(y,mo+1,0).getDate();
+  return new Date(y,mo,Math.min(d.getDate(),last));
+}
+// The bill's own current due date: saved next due if there is one, otherwise this month's due day
+function currentDueDate(bill){
+  const saved=parseDue(S.billData[bill.id]&&S.billData[bill.id].nextDue);
+  if(saved) return saved;
+  const t=new Date();
+  const last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();
+  return new Date(t.getFullYear(),t.getMonth(),Math.min(bill.day,last));
+}
+function daysUntil(d){const t=new Date();t.setHours(0,0,0,0);return Math.round((d-t)/86400000);}
+function fmtDate(d){return d.toLocaleDateString('en-CA',{month:'short',day:'numeric'});}
+function daysBadge(n){if(n<=0)return'<span class="badge b-due">Due now</span>';if(n<=7)return'<span class="badge b-soon">'+n+'d</span>';return'<span class="badge b-ok">'+n+'d</span>';}
+function typeBadge(t){if(t==='loc')return'<span class="badge b-loc">LOC</span>';if(t==='cc')return'<span class="badge b-cc">CC</span>';if(t==='bank-loc')return'<span class="badge b-bank">Bank→LOC</span>';return'<span class="badge b-bank">Bank</span>';}
+
+function getBillVariance(){
+  // Returns net variance — positive = overages reduce envelope, negative = underages add to envelope
+  return Object.entries(S.billData).reduce((sum,[id,d])=>{
+    if(!id.startsWith('b')||isNaN(id.slice(1))) return sum;
+    if(LOC_BUFFER_BILLS.includes(id)) return sum; // Water & prop tax exempt both ways
+    const bill=BILLS.find(b=>b.id===id);
+    if(!bill||!d.actualAmt||!bill.amt) return sum;
+    const diff=d.actualAmt-bill.amt; // positive=overage, negative=underage
+    return sum+diff; // overages reduce envelope, underages add back
+  },0);
+}
+function getEffEnv(){return Math.max(0, S.envelope - getBillVariance());}
+
+// ═══════════ MODALS ═══════════
+function openModal(name){const m=document.getElementById('modal-'+name);m.style.display='flex';m.classList.add('open');}
+function closeModal(name){const m=document.getElementById('modal-'+name);m.classList.remove('open');m.style.display='';}
+
+function openSettings(){
+  document.getElementById('bv-bank').textContent=f2(S.bank);
+  document.getElementById('bv-loc').textContent=fmt(S.loc);
+  document.getElementById('bv-cc').textContent=f2(S.cc);
+  document.getElementById('bv-env').textContent=f2(S.envelope);
+  openModal('settings');
+}
+
+function toggleBal(key){
+  const card=document.getElementById('bc-'+key);
+  const was=card.classList.contains('editing');
+  ['bank','loc','cc','env'].forEach(k=>document.getElementById('bc-'+k).classList.remove('editing'));
+  if(!was){card.classList.add('editing');setTimeout(()=>document.getElementById('bi-'+key).focus(),80);}
+}
+
+async function saveBal(key){
+  const val=parseFloat(document.getElementById('bi-'+key).value);
+  if(isNaN(val)||val<0){toast('Enter a valid amount');return;}
+  const old=key==='env'?S.envelope:S[key];
+  if(key==='env') S.envelope=val; else S[key]=val;
+  document.getElementById('bi-'+key).value='';
+  document.getElementById('bc-'+key).classList.remove('editing');
+  document.getElementById('bv-'+key).textContent=(key==='bank'||key==='cc'||key==='env')?f2(val):fmt(val);
+  const label=key==='bank'?'Bank':key==='loc'?'LOC':key==='cc'?'CC':'Envelope';
+  await logTxn(`${label} balance override`,Math.abs(val-old),val>old?'credit':'debit',key,`Manually corrected from ${key==='env'?f2(old):fmt(old)} to ${key==='env'?f2(val):fmt(val)}`);
+  await saveToDB(`${label} updated ✓`);
+  renderAll();
+}
+
+function openQuickPay(billId, src){
+  const bill=BILLS.find(b=>b.id===billId);
+  if(!bill) return;
+  currentBillId=billId;
+  selectedSrc=null;
+  document.getElementById('pb-title').textContent=bill.name;
+  document.getElementById('pb-sub').textContent=`${bill.note||''} · ${f2(bill.amt)}`;
+  document.getElementById('pb-amount').value=bill.amt.toFixed(2);
+  document.getElementById('pb-diff').style.display='none';
+  document.getElementById('pb-date').value=fmtDate(new Date());
+  document.getElementById('pb-nextdue').value='Every pay day';
+  document.getElementById('pb-id').value=billId;
+  ['bank','loc','cc','bank-loc','bank-cc'].forEach(s=>{const el=document.getElementById('src-'+s);if(el)el.classList.remove('selected');});
+  selectSrc(src||'bank');
+  openModal('paybill');
+}
+
+function openQuickPayCC(){
+  currentBillId='b25';
+  selectedSrc=null;
+  document.getElementById('pb-title').textContent='Pay credit card in full';
+  document.getElementById('pb-sub').textContent=`Current CC balance: ${f2(S.cc)} · Reduces both bank and CC balance`;
+  document.getElementById('pb-amount').value=S.cc.toFixed(2);
+  document.getElementById('pb-diff').style.display='none';
+  document.getElementById('pb-date').value=fmtDate(new Date());
+  document.getElementById('pb-nextdue').value='';
+  document.getElementById('pb-id').value='b25';
+  ['bank','loc','cc','bank-loc','bank-cc'].forEach(s=>{const el=document.getElementById('src-'+s);if(el)el.classList.remove('selected');});
+  selectSrc('bank-cc');
+  openModal('paybill');
+}
+
+function openQuickPayLOC(){
+  currentBillId='b_loc_extra';
+  selectedSrc=null;
+  document.getElementById('pb-title').textContent='Make LOC payment';
+  document.getElementById('pb-sub').textContent=`LOC balance: ${fmt(S.loc)} · Enter amount paying from bank — reduces both balances`;
+  document.getElementById('pb-amount').value='';
+  document.getElementById('pb-diff').style.display='none';
+  document.getElementById('pb-date').value=fmtDate(new Date());
+  document.getElementById('pb-nextdue').value='';
+  document.getElementById('pb-id').value='b_loc_extra';
+  ['bank','loc','cc','bank-loc','bank-cc'].forEach(s=>{const el=document.getElementById('src-'+s);if(el)el.classList.remove('selected');});
+  selectSrc('bank-loc');
+  openModal('paybill');
+}
+
+// ═══════════ CREDIT (add money to bank) ═══════════
+async function confirmCredit(){
+  const amt=parseFloat(document.getElementById('cr-amount').value)||0;
+  const desc=document.getElementById('cr-desc').value.trim()||'Credit received';
+  if(amt<=0){toast('Enter an amount');return;}
+  S.bank+=amt;
+  closeModal('credit');
+  document.getElementById('cr-amount').value='';
+  document.getElementById('cr-desc').value='';
+  await logTxn(desc,amt,'credit','bank','Money added to bank account');
+  await saveToDB(`${f2(amt)} added to bank ✓`);
+  renderAll();
+}
+
+// ═══════════ BILL PAYMENT ═══════════
+function openPayBill(billId){
+  const bill=BILLS.find(b=>b.id===billId);
+  if(!bill) return;
+  currentBillId=billId;
+  selectedSrc=null;
+  document.getElementById('pb-title').textContent='Pay — '+bill.name;
+  document.getElementById('pb-sub').textContent=`Budgeted: ${bill.amt?f2(bill.amt):'Pay full CC balance'} · Choose payment source below`;
+  document.getElementById('pb-amount').value=bill.amt?bill.amt.toFixed(2):(S.cc>0?S.cc.toFixed(2):'');
+  document.getElementById('pb-diff').style.display='none';
+  document.getElementById('pb-date').value=fmtDate(new Date());
+  // Advance exactly one month from the bill's own due date, not from today
+  document.getElementById('pb-nextdue').value=bill.day?fmtDate(addOneMonth(currentDueDate(bill))):'';
+  document.getElementById('pb-id').value=billId;
+  ['bank','loc','cc','bank-loc','bank-cc'].forEach(s=>{const el=document.getElementById('src-'+s);if(el)el.classList.remove('selected');});
+  // Auto-suggest source based on bill type
+  if(bill.type==='bank') selectSrc('bank');
+  else if(bill.type==='bank-loc') selectSrc('bank-loc');
+  else if(bill.type==='loc') selectSrc('bank');   // LOC bills paid from bank
+  else if(bill.type==='cc') selectSrc('cc');       // CC bills charged to CC
+  else selectSrc('bank');
+  openModal('paybill');
+}
+
+function selectSrc(src){
+  selectedSrc=src;
+  ['bank','loc','cc','bank-loc','bank-cc'].forEach(s=>{const el=document.getElementById('src-'+s);if(el)el.classList.toggle('selected',s===src);});
+}
+
+function previewDiff(){
+  const actual=parseFloat(document.getElementById('pb-amount').value)||0;
+  const bill=BILLS.find(b=>b.id===currentBillId);
+  if(!bill||!actual||!bill.amt) return;
+  const diff=actual-bill.amt;
+  const divEl=document.getElementById('pb-diff');
+  divEl.style.display='block';
+  const isExempt=LOC_BUFFER_BILLS.includes(bill.id)||bill.id==='b23';
+  if(diff>0){
+    const msg=isExempt?`$${diff.toFixed(2)} over budget — absorbed by LOC, does not affect envelope`:`$${diff.toFixed(2)} over budget — envelope reduced by this amount`;
+    divEl.innerHTML=`<div class="ins w">⚠️ ${msg}</div>`;
+  } else if(diff<0){
+    divEl.innerHTML=`<div class="ins g">✓ $${Math.abs(diff).toFixed(2)} under budget — no envelope impact.</div>`;
+  } else {
+    divEl.innerHTML=`<div class="ins g">✓ Exactly on budget.</div>`;
+  }
+}
+
+async function confirmPay(){
+  if(!selectedSrc){toast('Please choose where this is paid from');return;}
+  const actual=parseFloat(document.getElementById('pb-amount').value)||0;
+  if(actual<=0){toast('Enter an amount greater than zero');return;}
+  const paidDate=document.getElementById('pb-date').value||fmtDate(new Date());
+  const nextDue=document.getElementById('pb-nextdue').value;
+  const billId=document.getElementById('pb-id').value;
+
+  // Only update billData for real bills
+  const bill=BILLS.find(b=>b.id===billId);
+  if(bill){
+    if(!S.billData[billId]) S.billData[billId]={};
+    S.billData[billId]={paid:true, paidDate, nextDue, actualAmt:actual, paidFrom:selectedSrc};
+  }
+
+  // Update balances — never let any go below 0 except LOC which can grow
+  if(selectedSrc==='bank'){
+    S.bank=Math.max(0,S.bank-actual);
+  } else if(selectedSrc==='loc'){
+    S.loc=S.loc+actual; // charging to LOC increases what you owe
+  } else if(selectedSrc==='cc'){
+    S.cc=S.cc+actual;   // charging to CC increases what you owe
+  } else if(selectedSrc==='bank-loc'){
+    S.bank=Math.max(0,S.bank-actual);
+    S.loc=Math.max(0,S.loc-actual);  // paying DOWN LOC — both decrease
+  } else if(selectedSrc==='bank-cc'){
+    S.bank=Math.max(0,S.bank-actual);
+    S.cc=Math.max(0,S.cc-actual);    // paying OFF CC — both decrease
+  }
+
+  const desc=bill?bill.name:selectedSrc==='bank-cc'?'Credit card payoff':'LOC payment';
+  const accountLabel=selectedSrc==='bank-loc'?'Bank→LOC paydown':selectedSrc==='bank-cc'?'Bank→CC payoff':selectedSrc;
+  await logTxn(desc, actual, 'debit', accountLabel, `Paid ${paidDate}`);
+
+  closeModal('paybill');
+  await saveToDB(`${desc} ✓`);
+  renderAll();
+}
+
+async function pauseBill(id){
+  if(!S.billData[id]) S.billData[id]={};
+  S.billData[id].paused=true;
+  S.billData[id].resumeDate='';
+  toggleBillDetail(id);
+  await saveToDB('Bill paused ✓');
+  renderBills(); renderOverview();
+}
+
+async function unpauseBill(id){
+  if(S.billData[id]) S.billData[id].paused=false;
+  await saveToDB('Bill resumed ✓');
+  renderBills(); renderOverview();
+}
+
+function checkAutoResume(){
+  // Check if any paused bills have a resume date that has passed
+  const today=new Date(); today.setHours(0,0,0,0);
+  let changed=false;
+  Object.entries(S.billData).forEach(([id,d])=>{
+    if(d.paused&&d.resumeDate){
+      const resumeDate=new Date(d.resumeDate+' 2026');
+      if(!isNaN(resumeDate)&&resumeDate<=today){
+        d.paused=false;
+        changed=true;
+        toast(`${BILLS.find(b=>b.id===id)?.name||'Bill'} has been resumed`);
+      }
+    }
+  });
+  if(changed) saveToDB();
+}
+
+// ═══════════ CASH REMAINING ═══════════
+function calcCashRemaining(){
+  const nextPay=getNextShawnPay();
+  const allBills=getAllBills();
+
+  const upcomingBills=allBills.filter(b=>{
+    if(S.billData[b.id]?.paid) return false;
+    if(S.billData[b.id]?.paused) return false;
+    if(b.freq==='every-pay') return true;
+    if(b.freq==='quarterly') return false;
+    if(!b.day) return false;
+    const due=nextOcc(b.day);
+    return due<=nextPay;
+  });
+
+  const billTotal=upcomingBills.reduce((s,b)=>s+(S.billData[b.id]?.actualAmt||b.amt),0);
+  const sinkTotal=(S.sinkFunds||[]).reduce((s,sf)=>s+(sf.balance||0),0);
+
+  // Envelope remaining — money still to be spent this cycle (food, gas etc.)
+  const envSpent=Object.values(S.envSpent).reduce((a,b)=>a+b,0);
+  const envRemaining=Math.max(0,getEffEnv()-envSpent);
+
+  const remaining=S.bank-billTotal-sinkTotal-envRemaining;
+  return {remaining,billTotal,sinkTotal,envRemaining,upcomingBills};
+}
+
+function renderCashRemaining(){
+  const {remaining,billTotal,sinkTotal,envRemaining,upcomingBills}=calcCashRemaining();
+  const amtEl=document.getElementById('cr-amount');
+  if(!amtEl) return;
+  amtEl.textContent=f2(remaining);
+  amtEl.className='mval '+(remaining>500?'g':remaining>0?'gold':'r');
+
+  const pct=S.bank>0?Math.max(0,Math.min(100,Math.round(remaining/S.bank*100))):0;
+  const bar=document.getElementById('cr-bar');
+  if(bar){bar.style.width=pct+'%';bar.style.background=pct>30?'var(--green)':pct>10?'var(--orange)':'var(--red)';}
+
+  document.getElementById('cr-bank').textContent=f2(S.bank);
+
+  const billsHTML=upcomingBills.map(b=>`
+    <div class="row" style="padding:6px 0">
+      <span style="color:var(--text2);font-size:13px">${b.name} ${typeBadge(b.type)}</span>
+      <span style="color:var(--red);font-weight:600;font-size:13px">−${f2(S.billData[b.id]?.actualAmt||b.amt)}</span>
+    </div>`).join('');
+  document.getElementById('cr-bills-list').innerHTML=
+    `<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:8px 0 4px;font-weight:600">Unpaid bills this cycle</div>`+
+    (billsHTML||'<div style="font-size:13px;color:var(--text3);padding:4px 0">No unpaid bills</div>')+
+    `<div class="row" style="padding:6px 0;font-weight:600"><span>Bills subtotal</span><span style="color:var(--red)">−${f2(billTotal)}</span></div>`;
+
+  const sinksHTML=(S.sinkFunds||[]).filter(sf=>sf.balance>0).map(sf=>`
+    <div class="row" style="padding:6px 0">
+      <span style="color:var(--text2);font-size:13px">${sf.name} (reserved)</span>
+      <span style="color:var(--orange);font-weight:600;font-size:13px">−${f2(sf.balance)}</span>
+    </div>`).join('');
+  document.getElementById('cr-sink-list').innerHTML=
+    `<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:8px 0 4px;font-weight:600">Sink funds reserved</div>`+
+    (sinksHTML||'<div style="font-size:13px;color:var(--text3);padding:4px 0">No sink fund balances</div>')+
+    `<div class="row" style="padding:6px 0;font-weight:600"><span>Sink funds subtotal</span><span style="color:var(--orange)">−${f2(sinkTotal)}</span></div>`+
+    `<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:8px 0 4px;font-weight:600">Envelope remaining</div>`+
+    `<div class="row" style="padding:6px 0">
+      <span style="color:var(--text2);font-size:13px">Food, gas & buffer still to spend</span>
+      <span style="color:var(--orange);font-weight:600;font-size:13px">−${f2(envRemaining)}</span>
+    </div>`;
+
+  document.getElementById('cr-total').textContent=f2(remaining);
+  document.getElementById('cr-total').style.color=remaining>0?'var(--green)':'var(--red)';
+}
+
+let cashBreakdownOpen=false;
+function toggleCashBreakdown(){
+  cashBreakdownOpen=!cashBreakdownOpen;
+  const el=document.getElementById('cr-breakdown');
+  const btn=el.previousElementSibling;
+  el.style.display=cashBreakdownOpen?'block':'none';
+  btn.textContent=cashBreakdownOpen?'Hide breakdown ▴':'Show breakdown ▾';
+  if(cashBreakdownOpen) renderCashRemaining();
+}
+
+async function unpayBill(id){
+  if(!confirm('Unmark this bill as paid?'))return;
+  if(S.billData[id]){S.billData[id].paid=false;delete S.billData[id].paidDate;delete S.billData[id].paidFrom;}
+  await saveToDB('Bill unmarked');
+  renderBills(); renderCashRemaining();
+}
+
+// ═══════════ OVERVIEW ═══════════
+function renderOverview(){
+  const shawnNext=getNextShawnPay();
+  const jaclynNext=new Date(shawnNext.getTime()+86400000);
+  const d=daysUntil(shawnNext);
+  document.getElementById('hdr-pay').textContent=d===0?'Today!':d===1?'Tomorrow':fmtDate(shawnNext);
+  document.getElementById('ov-shawn').textContent=fmtDate(shawnNext);
+  document.getElementById('ov-jaclyn').textContent=fmtDate(jaclynNext);
+  document.getElementById('ov-bank').textContent=f2(S.bank);
+  document.getElementById('ov-loc').textContent=fmt(S.loc);
+  document.getElementById('ov-cc').textContent=f2(S.cc);
+
+  // Update cash remaining card
+  const {remaining}=calcCashRemaining();
+  const crEl=document.getElementById('cr-amount');
+  if(crEl){
+    crEl.textContent=f2(remaining);
+    crEl.className='mval '+(remaining>500?'g':remaining>0?'gold':'r');
+    const bar=document.getElementById('cr-bar');
+    if(bar){const pct=S.bank>0?Math.max(0,Math.min(100,Math.round(remaining/S.bank*100))):0;bar.style.width=pct+'%';bar.style.background=pct>30?'var(--green)':pct>10?'var(--orange)':'var(--red)';}
+  }
+  if(cashBreakdownOpen) renderCashRemaining();
+
+  const spent=Object.values(S.envSpent).reduce((a,b)=>a+b,0);
+  const effEnv=getEffEnv();
+  const rem=effEnv-spent;
+  const envEl=document.getElementById('ov-env');
+  envEl.textContent=f2(Math.max(0,rem));
+  envEl.className='mval '+(rem>effEnv*.3?'g':rem>0?'gold':'r');
+
+  const regularBills=getAllBills().filter(b=>b.freq!=='quarterly'&&b.day>0);
+  const upcoming=regularBills.map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))})).filter(b=>b.days<=14&&!S.billData[b.id]?.paid&&!S.billData[b.id]?.paused).sort((a,b)=>a.days-b.days);
+
+  document.getElementById('ov-bills').innerHTML=upcoming.length
+    ?upcoming.map(b=>`<div class="row">
+        <div><div class="rname">${b.name}</div><div class="rsub">${fmtDate(b.next)} · ${typeBadge(b.type)}</div></div>
+        <div class="rright">${daysBadge(b.days)}<span class="ramt">${f2(b.amt)}</span></div>
+      </div>`).join('')
+    :'<p style="font-size:13px;color:var(--text3);padding:6px 0">All bills in the next 14 days are paid ✓</p>';
+
+  let ins='';
+  if(d===0) ins+=`<div class="ins gold">🎉 It's pay day! Head to the Pay day tab and work through your checklist.</div>`;
+  else if(d===1) ins+=`<div class="ins gold">💰 Pay day is tomorrow — get ready!</div>`;
+  const unpaidUrgent=upcoming.filter(b=>b.days<=3);
+  if(unpaidUrgent.length) ins+=`<div class="ins w">⚠️ <strong>${unpaidUrgent.length} bill${unpaidUrgent.length>1?'s':''} due within 3 days</strong> and not yet paid.</div>`;
+  if(rem<0) ins+=`<div class="ins r">🚨 Envelope exceeded by ${f2(Math.abs(rem))} — this is going on the LOC.</div>`;
+  else if(rem<effEnv*.2) ins+=`<div class="ins w">⚠️ Only ${f2(rem)} left in envelope this cycle.</div>`;
+  else ins+=`<div class="ins g">✓ Envelope on track — ${f2(rem)} remaining this cycle.</div>`;
+  ins+=`<div class="ins b">💡 LOC interest this month: ${f2(S.loc*LOC_RATE/12)}. Monthly surplus: $320.17.</div>`;
+  document.getElementById('ov-insights').innerHTML=ins;
+}
+
+// ═══════════ CHECKLIST ═══════════
+function renderChecklist(){
+  const groups={accounts:[],bills:[],loc:[],checkin:[]};
+  CHECKLIST.forEach(c=>groups[c.group]?.push(c));
+  const ids={accounts:'cl-accounts',bills:'cl-bills',loc:'cl-loc',checkin:'cl-checkin'};
+  let done=0;
+  Object.entries(groups).forEach(([g,items])=>{
+    const el=document.getElementById(ids[g]);
+    if(!el) return;
+    el.innerHTML=items.map(item=>{
+      const isDone=!!S.checkDone[item.id];
+      if(isDone) done++;
+      return `<div class="cli ${isDone?'done':''}" onclick="toggleCheck('${item.id}')">
+        <div class="chkbox"><span class="chkicon">✓</span></div>
+        <div style="flex:1"><div class="chtitle">${item.title}</div><div class="chsub">${item.sub}</div></div>
+        ${item.amt?`<div class="chamt">${item.amt}</div>`:''}
+      </div>`;
+    }).join('');
+  });
+  document.getElementById('cl-prog').textContent=`${done} / ${CHECKLIST.length}`;
+}
+async function toggleCheck(id){S.checkDone[id]=!S.checkDone[id];await saveToDB();renderChecklist();}
+async function resetChecklist(){if(!confirm('Reset checklist?'))return;S.checkDone={};await saveToDB('Checklist reset ✓');renderChecklist();}
+
+// ═══════════ ENVELOPE ═══════════
+function renderEnvelope(){
+  const spent=Object.values(S.envSpent).reduce((a,b)=>a+b,0);
+  const effEnv=getEffEnv();
+  const rem=effEnv-spent;
+  const pct=Math.min(100,effEnv>0?Math.round(spent/effEnv*100):0);
+  const overages=getBillVariance();
+
+  document.getElementById('env-bud').textContent=f2(effEnv);
+  document.getElementById('env-spent').textContent=f2(spent);
+  const remEl=document.getElementById('env-rem');
+  remEl.textContent=f2(Math.max(0,rem));
+  remEl.className='mval '+(rem>effEnv*.3?'g':rem>0?'gold':'r');
+  document.getElementById('env-pct').textContent=pct+'%';
+
+  const bar=document.getElementById('env-bar');
+  bar.style.width=pct+'%';
+  bar.style.background=pct<70?'var(--green)':pct<90?'var(--orange)':'var(--red)';
+  let msg=pct>=100?`Over by ${f2(Math.abs(rem))}.`:pct>=80?`Almost gone — ${f2(Math.max(0,rem))} left.`:`${f2(Math.max(0,rem))} remaining.`;
+  if(overages>0) msg+=` (includes ${f2(overages)} in bill overages)`;
+  document.getElementById('env-msg').textContent=msg;
+
+  document.getElementById('env-cats').innerHTML=Object.entries(ENV_CATS).map(([k,cat])=>{
+    const s=S.envSpent[k]||0;
+    const bud=effEnv*cat.pct;
+    const cp=Math.min(100,bud>0?Math.round(s/bud*100):0);
+    return `<div class="ecat"><div class="echead"><span class="ecname">${cat.emoji} ${cat.label}</span><span class="ecmeta">${f2(s)} <span style="color:var(--text3)">/ ${f2(bud)}</span></span></div><div class="prog"><div class="pbar" style="width:${cp}%;background:${cat.color}"></div></div></div>`;
+  }).join('');
+
+  const logCard=document.getElementById('log-hist');
+  if(S.envLog.length>0){
+    logCard.style.display='block';
+    document.getElementById('log-list').innerHTML=[...S.envLog].reverse().map((l,i)=>`
+      <div class="row">
+        <div>
+          <div class="rname">${ENV_CATS[l.cat]?.label||l.cat}</div>
+          <div class="rsub">${l.note?l.note+' · ':''}${l.date||''} · paid via ${l.src==='cc'?'💳 CC':l.src==='bank'?'🏦 Bank':l.src==='loc'?'📋 LOC':'💵 Cash'}</div>
+        </div>
+        <div class="rright"><span class="ramt">${f2(l.amt)}</span><span style="font-size:11px;color:var(--red);cursor:pointer;padding:3px 7px" onclick="delLog(${S.envLog.length-1-i})">✕</span></div>
+      </div>`).join('');
+  } else logCard.style.display='none';
+}
+
+let envSrc='cc';
+function selectEnvSrc(src){
+  envSrc=src;
+  ['cc','bank','loc','none'].forEach(s=>{const el=document.getElementById('env-src-'+s);if(el)el.classList.toggle('selected',s===src);});
+}
+
+async function logSpend(){
+  const cat=document.getElementById('log-cat').value;
+  const amt=parseFloat(document.getElementById('log-amt').value)||0;
+  const note=document.getElementById('log-note').value.trim();
+  if(amt<=0){toast('Enter an amount');return;}
+  S.envSpent[cat]=(S.envSpent[cat]||0)+amt;
+  const entry={cat,amt,note,src:envSrc,date:new Date().toLocaleDateString('en-CA',{month:'short',day:'numeric'})};
+  S.envLog.push(entry);
+
+  // Update account balance based on payment method
+  if(envSrc==='cc') S.cc=S.cc+amt;
+  else if(envSrc==='bank') S.bank=Math.max(0,S.bank-amt);
+  else if(envSrc==='loc') S.loc=S.loc+amt;
+
+  document.getElementById('log-amt').value='';
+  document.getElementById('log-note').value='';
+  await logTxn(`${ENV_CATS[cat]?.label||cat}${note?' — '+note:''}`,amt,'debit',envSrc,'Envelope spend');
+  await saveToDB(`Logged ${f2(amt)} ✓`);
+  renderEnvelope(); renderOverview();
+}
+
+async function manualResetEnvelope(){
+  if(!confirm('Reset for new cycle?\n\nThis will:\n✓ Clear spending log\n✓ Reset all bill paid statuses\n✓ Auto-contribute sink funds\n\nBalances and bill due dates are NOT affected.')) return;
+  const today=new Date().toISOString().split('T')[0];
+  await doPaydayReset(today);
+  toast('Cycle reset ✓');
+}
+
+async function delLog(idx){
+  const l=S.envLog[idx];
+  S.envSpent[l.cat]=Math.max(0,(S.envSpent[l.cat]||0)-l.amt);
+  if(l.src==='cc') S.cc=Math.max(0,S.cc-l.amt);
+  else if(l.src==='bank') S.bank=S.bank+l.amt;
+  else if(l.src==='loc') S.loc=Math.max(0,S.loc-l.amt);
+  S.envLog.splice(idx,1);
+  await saveToDB('Entry removed');
+  renderEnvelope(); renderOverview();
+}
+
+// ═══════════ BILL EDITOR ═══════════
+// Returns merged list: built-in bills with overrides applied + custom bills
+function getAllBills(){
+  const merged = BILLS.map(b=>{
+    const ov=S.billOverrides?.[b.id];
+    return ov ? {...b,...ov} : b;
+  });
+  const custom=(S.customBills||[]);
+  return [...merged,...custom];
+}
+
+function openBillEditor(billId){
+  const allBills=getAllBills();
+  const bill=billId?allBills.find(b=>b.id===billId):null;
+  document.getElementById('bill-editor-title').textContent=bill?'Edit bill':'Add bill';
+  document.getElementById('be-name').value=bill?.name||'';
+  document.getElementById('be-amt').value=bill?.amt||'';
+  document.getElementById('be-day').value=bill?.day??'';
+  document.getElementById('be-type').value=bill?.type||'cc';
+  document.getElementById('be-freq').value=bill?.freq||'monthly';
+  document.getElementById('be-notes').value=bill?.note||'';
+  document.getElementById('be-id').value=billId||'';
+  // Show delete only for custom bills
+  const isCustom=billId&&(S.customBills||[]).some(b=>b.id===billId);
+  document.getElementById('be-delete-wrap').style.display=isCustom?'block':'none';
+  openModal('bill-editor');
+}
+
+async function saveBillEditor(){
+  const name=document.getElementById('be-name').value.trim();
+  const amt=parseFloat(document.getElementById('be-amt').value)||0;
+  const day=parseInt(document.getElementById('be-day').value)||0;
+  const type=document.getElementById('be-type').value;
+  const freq=document.getElementById('be-freq').value;
+  const note=document.getElementById('be-notes').value.trim();
+  const editId=document.getElementById('be-id').value;
+
+  if(!name){toast('Enter a bill name');return;}
+
+  if(editId){
+    // Check if it's a built-in bill — save as override
+    const isBuiltIn=BILLS.some(b=>b.id===editId);
+    if(isBuiltIn){
+      if(!S.billOverrides) S.billOverrides={};
+      S.billOverrides[editId]={name,amt,day,type,freq,note};
+    } else {
+      // Custom bill — update in place
+      const idx=(S.customBills||[]).findIndex(b=>b.id===editId);
+      if(idx>-1) S.customBills[idx]={...S.customBills[idx],name,amt,day,type,freq,note};
+    }
+  } else {
+    // New custom bill
+    if(!S.customBills) S.customBills=[];
+    S.customBills.push({id:'cb'+Date.now(),name,amt,day,type,freq,note});
+  }
+
+  closeModal('bill-editor');
+  await saveToDB('Bill saved ✓');
+  renderBills(); renderOverview();
+  toast(editId?'Bill updated ✓':'Bill added ✓');
+}
+
+async function deleteBill(){
+  const id=document.getElementById('be-id').value;
+  if(!id||!confirm('Delete this bill?')) return;
+  S.customBills=(S.customBills||[]).filter(b=>b.id!==id);
+  closeModal('bill-editor');
+  await saveToDB('Bill deleted');
+  renderBills(); renderOverview();
+  toast('Bill deleted');
+}
+
+// ═══════════ BILLS ═══════════
+let billFilter='all';
+function filterBills(f,el){billFilter=f;document.querySelectorAll('#panel-loc .ftab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderBills();}
+
+function renderBills(){
+  const allBills=getAllBills();
+
+  // Every-pay bills shown at top
+  const everyPay=allBills.filter(b=>b.freq==='every-pay')
+    .map(b=>({...b,next:new Date(),days:0,nextDueLabel:'Every pay day'}));
+
+  // Regular monthly bills sorted by days until due
+  let monthly=allBills.filter(b=>b.freq!=='quarterly'&&b.freq!=='every-pay'&&b.day>0)
+    .map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))}))
+    .sort((a,b)=>a.days-b.days);
+
+  // Quarterly bills at end
+  const quarterly=allBills.filter(b=>b.freq==='quarterly')
+    .map(b=>({...b,next:new Date(),days:0,nextDueLabel:'When due (quarterly)'}));
+
+  let list=[...everyPay,...monthly,...quarterly];
+
+  // Apply filters
+  if(billFilter==='paid') list=list.filter(b=>S.billData[b.id]?.paid);
+  else if(billFilter==='unpaid') list=list.filter(b=>!S.billData[b.id]?.paid&&!S.billData[b.id]?.paused);
+  else if(billFilter==='paused') list=list.filter(b=>S.billData[b.id]?.paused);
+  else if(billFilter==='bank') list=list.filter(b=>(b.type==='bank'||b.type==='bank-loc')&&!S.billData[b.id]?.paused);
+  else if(billFilter==='cc') list=list.filter(b=>b.type==='cc'&&!S.billData[b.id]?.paused);
+  else if(billFilter==='loc') list=list.filter(b=>(b.type==='loc'||b.type==='bank-loc')&&!S.billData[b.id]?.paused);
+  else list=list.filter(b=>!S.billData[b.id]?.paused);
+
+  document.getElementById('bills-list').innerHTML=list.map(b=>{
+    const bd=S.billData[b.id]||{};
+    const isPaid=!!bd.paid;
+    const isPaused=!!bd.paused;
+    const displayAmt=bd.actualAmt||b.amt;
+    const diff=bd.actualAmt&&b.amt?(bd.actualAmt-b.amt):0;
+    const nextDueStr=bd.nextDue||(b.nextDueLabel||(b.day?fmtDate(b.next):'Every pay day'));
+    const isExempt=LOC_BUFFER_BILLS.includes(b.id);
+    const isCustom=(S.customBills||[]).some(cb=>cb.id===b.id);
+
+    return `<div class="bill-wrap" ${isPaused?'style="opacity:.5"':''}>
+      <div class="bill-main" onclick="toggleBillDetail('${b.id}')">
+        <div style="flex:1;min-width:0">
+          <div class="rname">${b.name}${isPaused?` <span style="font-size:10px;color:var(--text3)">(Paused${bd.resumeDate?' · resumes '+bd.resumeDate:''})</span>`:''}</div>
+          <div class="rsub" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+            ${typeBadge(b.type)}
+            ${b.day||b.freq==='every-pay'?`<span>Next due: <strong>${nextDueStr}</strong></span>`:''}
+            ${isPaid?`<span class="paid-chip">✓ Paid ${bd.paidDate||''} via ${bd.paidFrom||''}</span>`:''}
+            ${diff>0&&!isExempt?`<span class="over-chip">Overage→envelope −${f2(diff)}</span>`:''}
+            ${diff>0&&isExempt?`<span class="over-chip">Overage→LOC +${f2(diff)}</span>`:''}
+            ${diff<0&&!isExempt?`<span style="background:var(--green-dim);color:var(--green);font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700">Underage→envelope +${f2(Math.abs(diff))}</span>`:''}
+            ${b.note?`<span style="font-size:10px;color:var(--text3)">${b.note}</span>`:''}
+          </div>
+        </div>
+        <div class="rright">
+          <span class="ramt">${b.amt?f2(displayAmt):'—'}</span>
+          ${!isPaused?`<button class="pay-btn ${isPaid?'paid':''}" onclick="event.stopPropagation();openPayBill('${b.id}')">${isPaid?'✓':'Pay'}</button>`:''}
+        </div>
+      </div>
+      <div class="bill-detail" id="bd-${b.id}">
+        <div class="bill-edit-grid">
+          <div><label>Next due date</label><input type="text" id="ndue-${b.id}" value="${nextDueStr}" placeholder="e.g. Jun 25"></div>
+          <div><label>Date paid</label><input type="text" id="pdate-${b.id}" value="${bd.paidDate||''}" placeholder="e.g. May 15"></div>
+        </div>
+        ${isPaused?`<div style="margin-bottom:8px"><label>Resume date</label><input type="text" id="rdate-${b.id}" value="${bd.resumeDate||''}" placeholder="e.g. Sep 1 2026"></div>`:''}
+        <div class="brow">
+          <button class="btn btn-gold btn-sm" onclick="saveBillDates('${b.id}')">Save dates</button>
+          <button class="btn btn-sm" onclick="event.stopPropagation();openBillEditor('${b.id}')">✏️ Edit bill</button>
+          ${isPaused
+            ?`<button class="btn btn-green btn-sm" onclick="unpauseBill('${b.id}')">▶ Resume</button>`
+            :`<button class="btn btn-sm" onclick="pauseBill('${b.id}')">⏸ Pause</button>`}
+          ${isPaid?`<button class="btn btn-red btn-sm" onclick="unpayBill('${b.id}')">Unmark paid</button>`:''}
+          ${isCustom?`<button class="btn btn-red btn-sm" onclick="document.getElementById('be-id').value='${b.id}';deleteBill()">🗑 Delete</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('')||'<p style="font-size:13px;color:var(--text3);padding:8px 0">No bills in this filter.</p>';
+}
+
+function renderBills(){
+  // Every-pay bills shown at top
+  const everyPay=BILLS.filter(b=>b.freq==='every-pay')
+    .map(b=>({...b,next:new Date(),days:0,nextDueLabel:'Every pay day'}));
+
+  // Regular monthly bills sorted by days until due
+  let monthly=BILLS.filter(b=>b.freq!=='quarterly'&&b.freq!=='every-pay'&&b.day>0)
+    .map(b=>({...b,next:nextOcc(b.day),days:daysUntil(nextOcc(b.day))}))
+    .sort((a,b)=>a.days-b.days);
+
+  // Quarterly bills at end
+  const quarterly=BILLS.filter(b=>b.freq==='quarterly')
+    .map(b=>({...b,next:new Date(),days:0,nextDueLabel:'When due (quarterly)'}));
+
+  let list=[...everyPay,...monthly,...quarterly];
+
+  // Apply filters
+  if(billFilter==='paid') list=list.filter(b=>S.billData[b.id]?.paid);
+  else if(billFilter==='unpaid') list=list.filter(b=>!S.billData[b.id]?.paid&&!S.billData[b.id]?.paused);
+  else if(billFilter==='paused') list=list.filter(b=>S.billData[b.id]?.paused);
+  else if(billFilter==='bank') list=list.filter(b=>(b.type==='bank'||b.type==='bank-loc')&&!S.billData[b.id]?.paused);
+  else if(billFilter==='cc') list=list.filter(b=>b.type==='cc'&&!S.billData[b.id]?.paused);
+  else if(billFilter==='loc') list=list.filter(b=>(b.type==='loc'||b.type==='bank-loc')&&!S.billData[b.id]?.paused);
+  else list=list.filter(b=>!S.billData[b.id]?.paused); // 'all' hides paused
+
+  document.getElementById('bills-list').innerHTML=list.map(b=>{
+    const bd=S.billData[b.id]||{};
+    const isPaid=!!bd.paid;
+    const isPaused=!!bd.paused;
+    const displayAmt=bd.actualAmt||b.amt;
+    const diff=bd.actualAmt&&b.amt?(bd.actualAmt-b.amt):0;
+    const nextDueStr=bd.nextDue||(b.nextDueLabel||(b.day?fmtDate(b.next):'Every pay day'));
+    const isExempt=LOC_BUFFER_BILLS.includes(b.id);
+
+    return `<div class="bill-wrap" ${isPaused?'style="opacity:.5"':''}>
+      <div class="bill-main" onclick="toggleBillDetail('${b.id}')">
+        <div style="flex:1;min-width:0">
+          <div class="rname">${b.name}${isPaused?` <span style="font-size:10px;color:var(--text3);font-weight:400">(Paused${bd.resumeDate?' · resumes '+bd.resumeDate:''})</span>`:''}</div>
+          <div class="rsub" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+            ${typeBadge(b.type)}
+            ${b.day||b.freq==='every-pay'?`<span>Next due: <strong>${nextDueStr}</strong></span>`:''}
+            ${isPaid?`<span class="paid-chip">✓ Paid ${bd.paidDate||''} via ${bd.paidFrom||''}</span>`:''}
+            ${diff>0&&!isExempt?`<span class="over-chip">Overage→envelope −${f2(diff)}</span>`:''}
+            ${diff>0&&isExempt?`<span class="over-chip">Overage→LOC +${f2(diff)}</span>`:''}
+            ${diff<0&&!isExempt?`<span style="background:var(--green-dim);color:var(--green);font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700">Underage→envelope +${f2(Math.abs(diff))}</span>`:''}
+            ${b.note?`<span style="font-size:10px;color:var(--text3)">${b.note}</span>`:''}
+          </div>
+        </div>
+        <div class="rright">
+          <span class="ramt">${b.amt?f2(displayAmt):'—'}</span>
+          ${!isPaused?`<button class="pay-btn ${isPaid?'paid':''}" onclick="event.stopPropagation();openPayBill('${b.id}')">${isPaid?'✓':'Pay'}</button>`:''}
+        </div>
+      </div>
+      <div class="bill-detail" id="bd-${b.id}">
+        <div class="bill-edit-grid">
+          <div><label>Next due date</label><input type="text" id="ndue-${b.id}" value="${nextDueStr}" placeholder="e.g. Jun 25"></div>
+          <div><label>Date paid</label><input type="text" id="pdate-${b.id}" value="${bd.paidDate||''}" placeholder="e.g. May 15"></div>
+        </div>
+        ${isPaused?`<div style="margin-bottom:8px"><label>Resume date</label><input type="text" id="rdate-${b.id}" value="${bd.resumeDate||''}" placeholder="e.g. Sep 1 2026"></div>`:''}
+        <div class="brow">
+          <button class="btn btn-gold btn-sm" onclick="saveBillDates('${b.id}')">Save dates</button>
+          ${isPaused
+            ?`<button class="btn btn-green btn-sm" onclick="unpauseBill('${b.id}')">▶ Resume bill</button>`
+            :`<button class="btn btn-sm" onclick="pauseBill('${b.id}')">⏸ Pause bill</button>`}
+          ${isPaid?`<button class="btn btn-red btn-sm" onclick="unpayBill('${b.id}')">Unmark paid</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('')||'<p style="font-size:13px;color:var(--text3);padding:8px 0">No bills in this filter.</p>';
+}
+
+function toggleBillDetail(id){document.getElementById(`bd-${id}`)?.classList.toggle('open');}
+
+async function saveBillDates(id){
+  if(!S.billData[id]) S.billData[id]={};
+  const ndue=document.getElementById(`ndue-${id}`)?.value.trim();
+  const pdate=document.getElementById(`pdate-${id}`)?.value.trim();
+  if(ndue) S.billData[id].nextDue=ndue;
+  if(pdate) S.billData[id].paidDate=pdate;
+  document.getElementById(`bd-${id}`)?.classList.remove('open');
+  await saveToDB('Dates saved ✓');
+  renderBills();
+}
+
+// ═══════════ SINK FUNDS ═══════════
+let ssSrcSelected=null;
+function selectSsSrc(src){
+  ssSrcSelected=src;
+  ['bank','cc','loc'].forEach(s=>{const el=document.getElementById('ss-src-'+s);if(el)el.classList.toggle('selected',s===src);});
+}
+
+function renderSinkFunds(){
+  const el=document.getElementById('sink-list');
+  if(!el) return;
+  if(!S.sinkFunds?.length){el.innerHTML='<p style="font-size:13px;color:var(--text3);margin-bottom:10px">No sink funds.</p>';return;}
+  el.innerHTML=S.sinkFunds.map(sf=>{
+    const target=sf.perCycle*8;
+    const pct=Math.min(100,Math.round((sf.balance||0)/target*100));
+    return `<div class="sink-card">
+      <div class="sink-header">
+        <div><div class="sink-name">${sf.name}</div><div class="sink-meta">+${f2(sf.perCycle)}/cycle · ${sf.notes||''}</div></div>
+        <div style="text-align:right"><div class="sink-bal">${f2(sf.balance||0)}</div><div class="sink-meta">saved up</div></div>
+      </div>
+      <div class="prog"><div class="pbar" style="width:${pct}%;background:var(--green)"></div></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">${f2(sf.balance||0)} of ${f2(target)} target</div>
+      <div class="sink-actions">
+        <button class="btn btn-sm btn-green" onclick="openSinkSpend('${sf.id}')">Log spend</button>
+        <button class="btn btn-sm" onclick="addSinkCycle('${sf.id}')">+ Add cycle (${f2(sf.perCycle)})</button>
+        <button class="btn btn-sm" onclick="editSink('${sf.id}')">Edit</button>
+        <button class="btn btn-red btn-sm" onclick="deleteSink('${sf.id}')">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openAddSink(){
+  document.getElementById('sink-title').textContent='Add sink fund';
+  ['sink-name','sink-per','sink-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sink-bal').value='0';
+  document.getElementById('sink-edit-id').value='';
+  openModal('sink');
+}
+
+function editSink(id){
+  const sf=S.sinkFunds.find(s=>s.id===id);
+  if(!sf) return;
+  document.getElementById('sink-title').textContent='Edit sink fund';
+  document.getElementById('sink-name').value=sf.name;
+  document.getElementById('sink-per').value=sf.perCycle;
+  document.getElementById('sink-bal').value=sf.balance||0;
+  document.getElementById('sink-notes').value=sf.notes||'';
+  document.getElementById('sink-edit-id').value=id;
+  openModal('sink');
+}
+
+async function saveSink(){
+  const name=document.getElementById('sink-name').value.trim();
+  const perCycle=parseFloat(document.getElementById('sink-per').value)||0;
+  const balance=parseFloat(document.getElementById('sink-bal').value)||0;
+  const notes=document.getElementById('sink-notes').value.trim();
+  const editId=document.getElementById('sink-edit-id').value;
+  if(!name){toast('Enter a name');return;}
+  if(!S.sinkFunds) S.sinkFunds=[];
+  if(editId){
+    const idx=S.sinkFunds.findIndex(s=>s.id===editId);
+    if(idx>-1) S.sinkFunds[idx]={...S.sinkFunds[idx],name,perCycle,balance,notes};
+  } else {
+    S.sinkFunds.push({id:'sf'+Date.now(),name,perCycle,balance,notes});
+  }
+  closeModal('sink');
+  await saveToDB('Sink fund saved ✓');
+  renderSinkFunds();
+}
+
+async function deleteSink(id){
+  if(!confirm('Delete this sink fund?'))return;
+  S.sinkFunds=S.sinkFunds.filter(s=>s.id!==id);
+  await saveToDB('Deleted');
+  renderSinkFunds();
+}
+
+async function addSinkCycle(id){
+  const sf=S.sinkFunds.find(s=>s.id===id);
+  if(!sf) return;
+  sf.balance=(sf.balance||0)+sf.perCycle;
+  await saveToDB(`+${f2(sf.perCycle)} added to ${sf.name} ✓`);
+  renderSinkFunds();
+}
+
+function openSinkSpend(id){
+  const sf=S.sinkFunds.find(s=>s.id===id);
+  if(!sf) return;
+  document.getElementById('ss-title').textContent=`Spend from ${sf.name}`;
+  document.getElementById('ss-sub').textContent=`Balance: ${f2(sf.balance||0)} · Choose how you paid`;
+  document.getElementById('ss-amt').value='';
+  document.getElementById('ss-note').value='';
+  document.getElementById('ss-id').value=id;
+  ssSrcSelected=null;
+  ['bank','cc','loc'].forEach(s=>{const el=document.getElementById('ss-src-'+s);if(el)el.classList.remove('selected');});
+  selectSsSrc('cc'); // default to CC since pets usually go on CC
+  openModal('sink-spend');
+}
+
+async function saveSinkSpend(){
+  const id=document.getElementById('ss-id').value;
+  const amt=parseFloat(document.getElementById('ss-amt').value)||0;
+  const note=document.getElementById('ss-note').value.trim();
+  if(amt<=0){toast('Enter an amount');return;}
+  if(!ssSrcSelected){toast('Choose how you paid');return;}
+  const sf=S.sinkFunds.find(s=>s.id===id);
+  if(!sf) return;
+  sf.balance=Math.max(0,(sf.balance||0)-amt);
+  // Update account balance
+  if(ssSrcSelected==='bank') S.bank=Math.max(0,S.bank-amt);
+  else if(ssSrcSelected==='cc') S.cc=S.cc+amt;
+  else if(ssSrcSelected==='loc') S.loc=S.loc+amt;
+  await logTxn(`${sf.name} — ${note||'spend'}`,amt,'debit',ssSrcSelected,`From ${sf.name} sink fund`);
+  closeModal('sink-spend');
+  await saveToDB(`${f2(amt)} logged from ${sf.name} ✓`);
+  renderAll();
+}
+
+// ═══════════ LOC SIMULATOR ═══════════
+let locChart=null;
+function renderLoc(){
+  document.getElementById('loc-bal').textContent=fmt(S.loc);
+  document.getElementById('loc-int').textContent=f2(S.loc*LOC_RATE/12);
+  updateLocSim();
+  renderBills();
+  renderSinkFunds();
+}
+
+function updateLocSim(){
+  const extra=parseInt(document.getElementById('loc-sl').value);
+  document.getElementById('loc-sl-val').textContent=fmt(extra);
+  const NET=916;
+  const months=[],base=[],withE=[];
+  let bB=S.loc,bE=S.loc;
+  const now=new Date();
+  for(let i=0;i<=12;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+    months.push(d.toLocaleDateString('en-CA',{month:'short',year:'2-digit'}));
+    base.push(Math.round(bB)); withE.push(Math.round(Math.max(0,bE)));
+    bB+=NET+bB*LOC_RATE/12;
+    bE=Math.max(0,bE+NET-extra+bE*LOC_RATE/12);
+  }
+  document.getElementById('sim-1yr').textContent=fmt(withE[12]);
+  const mtp=extra>NET?Math.ceil(S.loc/(extra-NET)):9999;
+  document.getElementById('sim-pay').textContent=mtp<9999?(mtp/12).toFixed(1)+' yrs':'n/a';
+  if(locChart) locChart.destroy();
+  locChart=new Chart(document.getElementById('loc-chart'),{
+    type:'line',
+    data:{labels:months,datasets:[
+      {data:base,borderColor:'#B02A2A',borderWidth:1.5,borderDash:[5,3],pointRadius:0,fill:false},
+      {data:withE,borderColor:'#1A6B3C',borderWidth:2,pointRadius:0,backgroundColor:'rgba(26,107,60,.07)',fill:true}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+f2(c.parsed.y)}}},
+      scales:{
+        x:{grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#7A7874',font:{size:10},maxRotation:45}},
+        y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#7A7874',font:{size:10},callback:v=>'$'+Math.round(v/1000)+'k'},min:Math.max(0,Math.min(...withE)-2000),max:Math.max(...base)+1000}
+      }
+    }
+  });
+}
+
+// ═══════════ HISTORY ═══════════
+let activeHistTab='txn';
+function showHistTab(tab,el){
+  activeHistTab=tab;
+  ['txn','cycles','charts'].forEach(t=>{const el2=document.getElementById('htab-'+t);if(el2)el2.style.display=t===tab?'block':'none';});
+  document.querySelectorAll('#panel-history .ftab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(tab==='charts') renderHistCharts();
+}
+
+function renderTxnList(){
+  const el=document.getElementById('txn-list');
+  if(!txnHistory.length){el.innerHTML='<p style="font-size:13px;color:var(--text3);padding:8px 0">No transactions yet. Pay a bill to see your transaction log.</p>';return;}
+  el.innerHTML=txnHistory.map(t=>`
+    <div class="txn">
+      <div>
+        <div class="txn-desc">${t.description}</div>
+        <div class="txn-sub">${t.date_display||''} · ${t.account||''} ${t.note?'· '+t.note:''}</div>
+      </div>
+      <div class="txn-amt ${t.type==='debit'?'debit':'credit'}">${t.type==='debit'?'-':'+'} ${f2(t.amount)}</div>
+    </div>`).join('');
+}
+
+function renderCycleList(){
+  const el=document.getElementById('cycle-list');
+  if(!cycleHistory.length){el.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:20px 0">No cycle history yet.</p>';return;}
+  el.innerHTML=cycleHistory.map((c,i)=>{
+    const surplus=(c.envelope_budget||0)-(c.envelope_spent||0);
+    return `<div class="hist-cycle">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="document.getElementById('hcb${i}').classList.toggle('open')">
+        <div><div style="font-size:14px;font-weight:600">Cycle: ${c.cycle_start}</div>
+        <div style="font-size:12px;color:var(--text2)">Envelope: ${f2(c.envelope_spent||0)} / ${f2(c.envelope_budget||0)} · LOC: ${fmt(c.loc_balance||0)}</div></div>
+        <span class="mval ${surplus>=0?'g':'r'}" style="font-size:15px">${surplus>=0?'+':'-'}${f2(Math.abs(surplus))}</span>
+      </div>
+      <div class="hist-body" id="hcb${i}">
+        ${Object.entries(ENV_CATS).map(([k,cat])=>`<div class="row"><span>${cat.emoji} ${cat.label}</span><span class="ramt">${f2(c[k+'_spent']||0)}</span></div>`).join('')}
+        <div class="trow"><span>Total spent</span><span>${f2(c.envelope_spent||0)}</span></div>
+        <div style="margin-top:7px;font-size:12px;color:var(--text3)">Bank: ${f2(c.bank_balance||0)} · CC: ${f2(c.cc_balance||0)} · LOC: ${fmt(c.loc_balance||0)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderHistCharts(){
+  if(!cycleHistory.length) return;
+  const cycles=[...cycleHistory].reverse();
+  const labels=cycles.map(c=>c.cycle_start.slice(5));
+
+  if(histCharts.loc) histCharts.loc.destroy();
+  histCharts.loc=new Chart(document.getElementById('hist-loc-chart'),{
+    type:'line',
+    data:{labels,datasets:[{data:cycles.map(c=>c.loc_balance||0),borderColor:'#B02A2A',backgroundColor:'rgba(176,42,42,.07)',fill:true,borderWidth:2,pointRadius:3,tension:.3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+f2(c.parsed.y)}}},
+      scales:{x:{grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#7A7874',font:{size:10}}},y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#7A7874',font:{size:10},callback:v=>'$'+Math.round(v/1000)+'k'}}}}
+  });
+
+  if(histCharts.env) histCharts.env.destroy();
+  const catColors={food:'#1A6B3C',gas:'#1A4A8A',kids:'#6D28D9',misc:'#9B4A10'};
+  histCharts.env=new Chart(document.getElementById('hist-env-chart'),{
+    type:'bar',
+    data:{labels,datasets:Object.entries(ENV_CATS).map(([k,cat])=>({label:cat.label,data:cycles.map(c=>c[k+'_spent']||0),backgroundColor:catColors[k]+'CC',borderRadius:3}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{font:{size:10},color:'#4A4845',boxWidth:10}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#7A7874',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(0,0,0,.05)'},ticks:{color:'#7A7874',font:{size:10},callback:v=>'$'+v}}}}
+  });
+}
+
+function renderHistory(){renderTxnList();renderCycleList();}
+
+// ═══════════ AI ASSISTANT ═══════════
+function buildContext(){
+  const spent=Object.values(S.envSpent).reduce((a,b)=>a+b,0);
+  const effEnv=getEffEnv();
+  const shawnNext=getNextShawnPay();
+  const urgent=BILLS.filter(b=>b.day>0&&b.freq!=='quarterly').map(b=>({...b,days:daysUntil(nextOcc(b.day))})).filter(b=>b.days<=7&&!S.billData[b.id]?.paid).sort((a,b)=>a.days-b.days);
+  const recentCycles=cycleHistory.slice(0,3);
+  const histNote=recentCycles.length?`Last ${recentCycles.length} cycles: ${recentCycles.map(c=>`${c.cycle_start} spent ${f2(c.envelope_spent||0)}/${f2(c.envelope_budget||0)}`).join(', ')}`:'No history yet.';
+
+  return `You are a warm, practical family finance assistant. Be specific with numbers, keep answers concise.
+
+CURRENT STATE:
+- Bank: ${f2(S.bank)} | LOC (4.65%): ${fmt(S.loc)} | CC: ${f2(S.cc)} (paid in full every 2 weeks)
+- LOC monthly interest: ${f2(S.loc*LOC_RATE/12)} | LOC = ~$36k Shawn car + ~$16k basketball school
+
+ENVELOPE — $1,010.09/cycle:
+- Effective budget (after bill overages): ${f2(effEnv)} | Spent: ${f2(spent)} | Remaining: ${f2(Math.max(0,effEnv-spent))}
+- Food $800 + Shawn gas $50 + Surplus $160.09
+- Pets is a SINK FUND — not in envelope
+- Water & Property Tax overages never reduce envelope
+
+SINK FUNDS: ${(S.sinkFunds||[]).map(sf=>`${sf.name}: ${f2(sf.balance||0)} saved (+${f2(sf.perCycle)}/cycle)`).join(', ')||'None'}
+
+PAY SCHEDULE: Shawn $2,649.31 biweekly (next ${fmtDate(shawnNext)}) — envelope resets on his pay
+Jaclyn $2,629.32 biweekly (next day after Shawn)
+Combined: $5,278.63/cycle | Monthly income: $10,557.26 | Expenses: $10,237.09 | Surplus: $320.17/mo
+
+UNPAID BILLS DUE SOON: ${urgent.length?urgent.map(b=>`${b.name} ${f2(b.amt)} in ${b.days}d`).join(', '):'None'}
+HISTORY: ${histNote}`;
+}
+
+let chatHistory=[];
+async function sendChat(){
+  const input=document.getElementById('chat-input');
+  const msg=input.value.trim();
+  if(!msg) return;
+  input.value='';
+  addMsg(msg,'user');
+  chatHistory.push({role:'user',content:msg});
+  const thinking=addMsg('Thinking…','ai msg-thinking');
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:buildContext(),messages:chatHistory.slice(-10)})});
+    const data=await r.json();
+    const text=data.content?.map(c=>c.text||'').join('')||'Sorry, something went wrong.';
+    thinking.remove(); addMsg(text,'ai');
+    chatHistory.push({role:'assistant',content:text});
+  } catch(e){thinking.remove();addMsg('Connection error — need internet for the assistant.','ai');}
+}
+function addMsg(text,cls){const wrap=document.getElementById('chat-wrap');const div=document.createElement('div');div.className='msg msg-'+cls;div.textContent=text;wrap.appendChild(div);wrap.scrollTop=wrap.scrollHeight;return div;}
+function askQ(el){document.getElementById('chat-input').value=el.textContent;sendChat();}
+
+// ═══════════ NAV ═══════════
+function showPanel(name,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  if(el) el.classList.add('active');
+  if(name==='loc') renderLoc();
+  if(name==='checklist') renderChecklist();
+  if(name==='envelope') renderEnvelope();
+  if(name==='history') renderHistory();
+}
+
+function renderAll(){renderOverview();renderChecklist();renderEnvelope();renderBills();renderSinkFunds();renderCashRemaining();}
+
+// ═══════════ INIT ═══════════
+initDB();
+checkAutoResume();
+</script>
+</body>
+</html>
