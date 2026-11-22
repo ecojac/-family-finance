@@ -646,7 +646,7 @@ const BILLS = [
   {id:'b04',name:'Presto transit',            amt:200,     day:1,  type:'cc',   freq:'every-pay', note:'Every pay — fixed, not from envelope'},
   // 5th
   {id:'b05',name:'407 ETR',                   amt:125,     day:5,  type:'cc',   freq:'monthly'},
-  {id:'b06',name:'Enbridge gas → LOC',        amt:125,     day:5,  type:'loc',  freq:'monthly'},
+  {id:'b06',name:'Enbridge gas',               amt:125,     day:5,  type:'bank', freq:'monthly'},
   // 14th
   {id:'b07',name:'Telus Internet',            amt:89.27,   day:14, type:'cc',   freq:'monthly'},
   // 15th
@@ -666,7 +666,7 @@ const BILLS = [
   {id:'b17',name:'Apple subscription',        amt:16.94,   day:23, type:'cc',   freq:'monthly'},
   {id:'b18',name:'Apple iCloud',              amt:5.00,    day:24, type:'cc',   freq:'monthly'},
   {id:'b19',name:'Toyota subscription',       amt:11.24,   day:25, type:'cc',   freq:'monthly'},
-  {id:'b20',name:'Oshawa Power → LOC',        amt:145.61,  day:25, type:'loc',  freq:'monthly'},
+  {id:'b20',name:'Oshawa Power',               amt:145.61,  day:25, type:'bank', freq:'monthly'},
   // 30th
   {id:'b21',name:'Jaclyn & Chase Equitable',  amt:432.94,  day:30, type:'bank', freq:'monthly'},
   {id:'b22',name:'Property Tax → LOC',        amt:650,     day:30, type:'loc',  freq:'monthly', note:'Accumulates in LOC — not from envelope'},
@@ -687,7 +687,7 @@ const ENV_CATS = {
 };
 
 const CHECKLIST = [
-  {id:'c1',group:'accounts',title:'Add combined pay to bank',sub:'Overview → "+ Add money to bank" → enter $5,278.63 (or actual amount)',amt:'$5,278.63'},
+  {id:'c1',group:'accounts',title:'Confirm pay was added to bank',sub:'Overview → bank balance should be up by $5,278.63 — if not, tap "+ Add money to bank"',amt:'$5,278.63'},
   {id:'c2',group:'accounts',title:'Check bank balance is accurate',sub:'Confirm the balance shown matches your TD account',amt:''},
   {id:'c3',group:'bills',title:'Pay credit card in full',sub:'Overview → "Pay CC balance" → confirm Bank→CC payoff',amt:'Full CC balance'},
   {id:'c4',group:'bills',title:'Pay Shawn car → LOC',sub:'LOC & Bills → Shawn Car → Pay → Bank→LOC paydown',amt:'$580'},
@@ -751,6 +751,11 @@ async function loadFromDB(){
   try{
     const {data:st} = await db.from('app_state').select('*').eq('id',1).single();
     if(st?.state_json) S={...S,...JSON.parse(st.state_json)};
+    // Enbridge and Oshawa Power are paid from the bank. Fix any older saved edits.
+    ['b06','b20'].forEach(id=>{
+      const ov=S.billOverrides&&S.billOverrides[id];
+      if(ov){ if(ov.type==='loc') ov.type='bank'; if(ov.name) ov.name=ov.name.replace(/\s*→\s*LOC/,''); }
+    });
     const {data:txns} = await db.from('transactions').select('*').order('created_at',{ascending:false}).limit(150);
     txnHistory=txns||[];
     const {data:cyc} = await db.from('cycles').select('*').order('cycle_start',{ascending:false}).limit(26);
@@ -845,6 +850,11 @@ async function doPaydayReset(today){
     contributed.push(`${sf.name} +${f2(sf.perCycle)}`);
   });
 
+  // Auto-add combined pay to bank
+  const combinedPay = 5278.63;
+  S.bank = S.bank + combinedPay;
+  await logTxn('Combined pay — Shawn & Jaclyn', combinedPay, 'credit', 'bank', 'Auto-added on pay day reset');
+
   // Reset envelope spending log
   S.envSpent={food:0,gas:0,kids:0,misc:0};
   S.envLog=[];
@@ -869,7 +879,7 @@ async function doPaydayReset(today){
 
   // Show banner
   const banner=document.getElementById('payday-banner');
-  document.getElementById('banner-sub').textContent=`Sink funds updated (${contributed.join(', ')}) · ${f2(S.envelope)} available · Don't forget to add your pay!`;
+  document.getElementById('banner-sub').textContent=`$5,278.63 added to bank · Sink funds updated (${contributed.join(', ')}) · ${f2(S.envelope)} envelope available`;
   banner.classList.add('show');
 
   renderAll();
@@ -880,6 +890,33 @@ function fmt(n,d=0){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFracti
 function f2(n){return fmt(n,2);}
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800);}
 function nextOcc(day){if(!day)return new Date();const t=new Date();t.setHours(0,0,0,0);let d=new Date(t.getFullYear(),t.getMonth(),day);if(d<t)d=new Date(t.getFullYear(),t.getMonth()+1,day);return d;}
+function parseDue(str){
+  if(!str) return null;
+  const m=String(str).trim().match(/^([A-Za-z]{3,9})\.?\s+(\d{1,2})/);
+  if(!m) return null;
+  const mon=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(m[1].slice(0,3).toLowerCase());
+  if(mon<0) return null;
+  const t=new Date();t.setHours(0,0,0,0);
+  let best=null;
+  [t.getFullYear()-1,t.getFullYear(),t.getFullYear()+1].forEach(y=>{
+    const d=new Date(y,mon,+m[2]);
+    if(!best||Math.abs(d-t)<Math.abs(best-t)) best=d;
+  });
+  return best;
+}
+function addOneMonth(d){
+  const y=d.getFullYear(), mo=d.getMonth()+1;
+  const last=new Date(y,mo+1,0).getDate();
+  return new Date(y,mo,Math.min(d.getDate(),last));
+}
+// The bill's own current due date: saved next due if there is one, otherwise this month's due day
+function currentDueDate(bill){
+  const saved=parseDue(S.billData[bill.id]&&S.billData[bill.id].nextDue);
+  if(saved) return saved;
+  const t=new Date();
+  const last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();
+  return new Date(t.getFullYear(),t.getMonth(),Math.min(bill.day,last));
+}
 function daysUntil(d){const t=new Date();t.setHours(0,0,0,0);return Math.round((d-t)/86400000);}
 function fmtDate(d){return d.toLocaleDateString('en-CA',{month:'short',day:'numeric'});}
 function daysBadge(n){if(n<=0)return'<span class="badge b-due">Due now</span>';if(n<=7)return'<span class="badge b-soon">'+n+'d</span>';return'<span class="badge b-ok">'+n+'d</span>';}
@@ -1003,9 +1040,8 @@ function openPayBill(billId){
   document.getElementById('pb-amount').value=bill.amt?bill.amt.toFixed(2):(S.cc>0?S.cc.toFixed(2):'');
   document.getElementById('pb-diff').style.display='none';
   document.getElementById('pb-date').value=fmtDate(new Date());
-  const next=nextOcc(bill.day);
-  next.setMonth(next.getMonth()+1);
-  document.getElementById('pb-nextdue').value=bill.day?fmtDate(next):'';
+  // Advance exactly one month from the bill's own due date, not from today
+  document.getElementById('pb-nextdue').value=bill.day?fmtDate(addOneMonth(currentDueDate(bill))):'';
   document.getElementById('pb-id').value=billId;
   ['bank','loc','cc','bank-loc','bank-cc'].forEach(s=>{const el=document.getElementById('src-'+s);if(el)el.classList.remove('selected');});
   // Auto-suggest source based on bill type
